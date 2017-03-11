@@ -77,6 +77,7 @@ int priqueue_offer(priqueue_t *q, void *ptr)
 
 		// Update size
 		q->size++;
+		printf("\n\nALLCOATION!\n\n");
 	}
 	else{
 		node_t *temp = q->front;
@@ -85,7 +86,6 @@ int priqueue_offer(priqueue_t *q, void *ptr)
 			printf("Searching for correct position for new value %d...\n", *(int*)ptr);
 		}
 
-		// This is just inserting in order of arrival.
 		// Two compares in use: 
 		// 	c1(a,b) -> a-b (lowest takes priority)
 		// 	c2(a,b) -> b-a (highest takes priority)
@@ -130,6 +130,7 @@ int priqueue_offer(priqueue_t *q, void *ptr)
 			}
 		}
 		if(DEBUG){
+			printf("\n\nALLOCATION\n\n");
 			print_q(q);	
 		}
 	}
@@ -184,14 +185,17 @@ void *priqueue_poll(priqueue_t *q)
 			printf("Removing %d from front of queue...\n", *(int*)q->front->value);	
 			print_q(q);
 		}
-		node_t* temp = q->front;
+		//node_t* temp = q->front;
+		void *ret = q->front->value;
+		free(q->front);
 		q->front = NULL;
 		q->back = NULL;
 		q->size--;
 		if(DEBUG){
 			print_q(q);
+			//printf("\n\nPlease remember to free this...\n\n");
 		}
-		return temp->value;
+		return ret;
 	}
 	else{
 		if(DEBUG){
@@ -199,12 +203,15 @@ void *priqueue_poll(priqueue_t *q)
 			print_q(q);
 		}
 		node_t* temp = q->front;
+		void *ret = q->front->value;
 		q->front = q->front->next;
+		free(temp);
 		q->size--;
 		if(DEBUG){
 			print_q(q);
+			//printf("\n\nPlease remember to free this...\n\n");
 		}
-		return temp->value;
+		return ret;
 	}
 }
 
@@ -272,6 +279,7 @@ int priqueue_remove(priqueue_t *q, void *ptr)
 			if(DEBUG){
 				printf("Destroying match for %d\n", *(int*)ptr);
 				print_q(q);
+				printf("\n\nFREEING!\n\n");
 			}
 			if(temp == q->front){
 				prev = temp;
@@ -344,10 +352,13 @@ int priqueue_size(priqueue_t *q)
  */
 void priqueue_destroy(priqueue_t *q)
 {
-	node_t* temp = q->front;
-	while(q->front != q->back){
-		temp = priqueue_poll(q);
-		free(temp);
+	node_t *temp;
+	while(q->front != NULL){
+		temp = q->front->next;
+		free(q->front);
+		printf("\n\nFREEING!\n\n");
+		q->front = temp;
+		q->size--;
 	}
 	assert(0 == q->size);
 	q->front = NULL;
