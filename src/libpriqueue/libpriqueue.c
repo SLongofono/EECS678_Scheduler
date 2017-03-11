@@ -12,11 +12,10 @@
 void print_q(priqueue_t *q){
 	node_t* temp = q->front;
 	printf("Queue contents: ");
-	while(temp != q->back){
-		printf("%d, ", *(int*)temp->value);
+	while(temp != NULL){
+		printf("%d ", *(int*)temp->value);
 		temp = temp->next;
 	}
-	printf("%d\n", *(int*)temp->value);
 }
 
 
@@ -281,7 +280,12 @@ int priqueue_remove(priqueue_t *q, void *ptr)
 				print_q(q);
 				printf("\n\nFREEING!\n\n");
 			}
-			if(temp == q->front){
+			if(1 == q->size){
+				free(temp);
+				q->front = NULL;
+				q->back = NULL;
+			}
+			else if(temp == q->front){
 				prev = temp;
 				temp = temp->next;
 				q->front = temp;
@@ -329,7 +333,24 @@ int priqueue_remove(priqueue_t *q, void *ptr)
  */
 void *priqueue_remove_at(priqueue_t *q, int index)
 {
-	return 0;
+	if(q->size < index || index < 0){
+		return NULL;	
+	}
+	int count = 0;
+	void * ret;
+	node_t* temp = q->front;
+	node_t * prev = NULL;
+	while(count != index){
+		prev = temp;
+		temp = temp->next;
+		count++;
+	}
+	assert(temp != NULL);
+	prev->next = temp->next;
+	ret = temp->value;
+	free(temp);
+	q->size--;
+	return ret;
 }
 
 
