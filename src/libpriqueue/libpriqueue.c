@@ -82,13 +82,13 @@ int priqueue_offer(priqueue_t *q, void *ptr)
 		insertion_point = 0;
 	}
 	else{
-		if(DEBUG){
-			printf("Searching for correct position...\n");	
-		}
 
 		node_t *temp = q->front;
 		node_t *prev = NULL;
 		insertion_point = 0;
+		if(DEBUG){
+			printf("Searching for correct position...\n");
+		}
 		while(0 < q->compare(temp, ptr)){
 			// proceed until we reach something that has lower
 			// priority or the end
@@ -128,7 +128,9 @@ int priqueue_offer(priqueue_t *q, void *ptr)
 			// case insert a new value
 			node_t *temp2 = malloc(sizeof(node_t));
 			temp2->value = ptr;
-			prev->next = temp2;
+			if(NULL != prev){
+				prev->next = temp2;
+			}
 			temp2->next = temp;
 			q->size++;
 			if(DEBUG){
@@ -222,7 +224,8 @@ void *priqueue_poll(priqueue_t *q)
   Returns the element at the specified position in this list, or NULL if
   the queue does not contain an index'th element.
  
-  @note The returned item must be freed
+  @note The item remains in the queue - this behavior was not explicitly stated,
+  	but through trial and error it appears that this is the intended behavior
 
   @param q a pointer to an instance of the priqueue_t data structure
   @param index position of retrieved element
@@ -238,20 +241,20 @@ void *priqueue_at(priqueue_t *q, int index)
 		// Locate the element
 		int count =0;
 		node_t * temp = q->front;
-		node_t * prev = NULL;
+		//node_t * prev = NULL;
 		while(count < index){
-			prev = temp;
+			//prev = temp;
 			temp = temp->next;
 			count++;
 		}
 
 		if(DEBUG){
-			printf("Removing element %d from position %d\n", *(int*)temp->value, count);
+			printf("Found element %d at position %d\n", *(int*)temp->value, count);
 		}
 
 		// Remove and clean up
-		prev->next = temp->next;
-		q->size--;
+		//prev->next = temp->next;
+		//q->size--;
 
 		// Return result
 		return temp->value;
@@ -292,11 +295,13 @@ int priqueue_remove(priqueue_t *q, void *ptr)
 				free(temp);
 				temp = NULL;
 				q->back = prev;
+				q->back->next=NULL;
 			}
 			else{
 				node_t* destroy = temp;
 				temp = temp->next;
 				free(destroy);
+				prev->next = temp;
 			}
 			removed++;
 			q->size--;
@@ -305,6 +310,9 @@ int priqueue_remove(priqueue_t *q, void *ptr)
 			}
 		}
 		else{
+			if(DEBUG){
+				printf("%d does not match pattern %d, moving on...\n", *(int*)temp->value, *(int*)ptr);	
+			}
 			prev = temp;
 			temp = temp->next;
 		}
