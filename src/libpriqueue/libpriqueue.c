@@ -58,7 +58,7 @@ int priqueue_offer(priqueue_t *q, void *ptr)
 	if(DEBUG){
 		printf("Adding a value...\n");	
 	}
-	int insertion_point = -1;
+	int insertion_point = 0;
 	if(0 == q->size){
 		if(DEBUG){
 			printf("No previous vals, adding to front...\n");	
@@ -77,42 +77,30 @@ int priqueue_offer(priqueue_t *q, void *ptr)
 
 		// Update size
 		q->size++;
-
-		// Update insertion point
-		insertion_point = 0;
 	}
 	else{
-
 		node_t *temp = q->front;
 		node_t *prev = NULL;
-		insertion_point = 0;
 		if(DEBUG){
-			printf("Searching for correct position...\n");
+			printf("Searching for correct position for new value %d...\n", *(int*)ptr);
 		}
-		while(0 < q->compare(temp, ptr)){
+
+		// This is just inserting in order of arrival.
+		// Two compares in use: 
+		// 	c1(a,b) -> a-b (lowest takes priority)
+		// 	c2(a,b) -> b-a (highest takes priority)
+		while(NULL != temp && 0 <= q->compare(ptr, temp->value)){
 			// proceed until we reach something that has lower
 			// priority or the end
 			if(DEBUG){
-				printf("Position %d has higher priority...\n", insertion_point);	
+				printf("%d has higher priority than %d...\n", *(int*)temp->value, *(int*)ptr);	
 			}
-			if(temp->next != NULL){
-				prev = temp;
-				temp = temp->next;
-				insertion_point++;
-			}
-			else{
-				if(DEBUG){
-					printf("Reached end of  queue, adding to back...\n");	
-				}
-				insertion_point++;
-				break;
-			}
+			prev = temp;
+			temp = temp->next;
+			insertion_point++;
 		}
-		// temp now points to what should come after the new value,
-		// and insertion point where the new value will reside
-		
-		
-		if(NULL == temp->next){
+	
+		if(NULL == temp){
 			// case we hit the end
 			temp = malloc(sizeof(node_t));
 			q->back->next = temp;
@@ -128,19 +116,22 @@ int priqueue_offer(priqueue_t *q, void *ptr)
 			// case insert a new value
 			node_t *temp2 = malloc(sizeof(node_t));
 			temp2->value = ptr;
-			if(NULL != prev){
+			if(q->front == temp){
+				q->front = temp2;
+				temp2->next = temp;
+			}
+			else{
+				temp2->next = temp;
 				prev->next = temp2;
 			}
-			temp2->next = temp;
 			q->size++;
 			if(DEBUG){
-				printf("Added %d to position %d\n", *(int*)temp->value, insertion_point);
+				printf("Added %d to position %d\n", *(int*)temp2->value, insertion_point);
 			}
 		}
-	}
-	if(DEBUG){
-		printf("Inserted at position %d\n", insertion_point);
-		print_q(q);
+		if(DEBUG){
+			print_q(q);	
+		}
 	}
 	return insertion_point;
 }
@@ -162,10 +153,10 @@ void *priqueue_peek(priqueue_t *q)
 		return NULL;
 	}
 	else{
-		node_t* temp = malloc(sizeof(node_t));
-		temp->next = NULL;
-		temp->value = q->front->value;
-		return temp;
+		//node_t* temp = malloc(sizeof(node_t));
+		//temp->next = NULL;
+		//temp->value = q->front->value;
+		return q->front->value;
 	}
 }
 
@@ -193,8 +184,6 @@ void *priqueue_poll(priqueue_t *q)
 			printf("Removing %d from front of queue...\n", *(int*)q->front->value);	
 			print_q(q);
 		}
-		// I know this is terrible, but we can't assume the type of
-		// this value with the given prompt.
 		node_t* temp = q->front;
 		q->front = NULL;
 		q->back = NULL;
