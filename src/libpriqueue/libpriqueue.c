@@ -6,7 +6,7 @@
 
 #include "libpriqueue.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 
 void print_q(priqueue_t *q){
@@ -76,7 +76,6 @@ int priqueue_offer(priqueue_t *q, void *ptr)
 
 		// Update size
 		q->size++;
-		printf("\n\nALLCOATION!\n\n");
 	}
 	else{
 		node_t *temp = q->front;
@@ -129,7 +128,6 @@ int priqueue_offer(priqueue_t *q, void *ptr)
 			}
 		}
 		if(DEBUG){
-			printf("\n\nALLOCATION\n\n");
 			print_q(q);	
 		}
 	}
@@ -377,7 +375,6 @@ void priqueue_destroy(priqueue_t *q)
 	while(q->front != NULL){
 		temp = q->front->next;
 		free(q->front);
-		printf("\n\nFREEING!\n\n");
 		q->front = temp;
 		q->size--;
 	}
