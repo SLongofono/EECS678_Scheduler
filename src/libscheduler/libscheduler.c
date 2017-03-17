@@ -8,11 +8,11 @@
 #include "libscheduler.h"
 #include "../libpriqueue/libpriqueue.h"
 
-// Global queues for each core
-priqueue_t *cores;
+// Global ready queue
+priqueue_t *ready_q;
 
-// Global scheduling scheme
-int q_scheme;
+// Track busy cores
+int *active_core;
 
 /**
   Stores information making up a job to be scheduled including any statistics.
@@ -24,6 +24,34 @@ typedef struct _job_t
 	// Contains in order: uuid, arrival, burst, priority
 	int value[4];
 } job_t;
+
+/*
+ * Functions for comparison pointer
+ */
+
+int comparison_FCFS(const void *j1, const void *j2){
+	return 0;
+}
+
+int comparison_SJF(const void *j1, const void *j2){
+	return 0;
+}
+
+int comparison_PSJF(const void *j1, const void* j2){
+	return 0;
+}
+
+int comparison_PRI(const void *j1, const void *j2){
+	return 0;
+}
+
+int comparison_PPRI(const void *j1, const void *j2){
+	return 0;
+}
+
+int comparison_RR(const void *j1, const void *j2){
+	return 0;	
+}
 
 
 /**
@@ -40,13 +68,28 @@ typedef struct _job_t
 */
 void scheduler_start_up(int cores, scheme_t scheme)
 {
-	// Set up global cores pointers to priority queues
-	priqueue_t *temp[cores];
-	for(int i=0; i<cores; ++i){
-		temp[i] = (priqueue_t *)malloc(sizeof(priqueue_t));
+	// Set up global core tracker
+	active_core = (int *)malloc(cores * sizeof(int));
+	switch(scheme){
+		case FCFS:
+			priqueue_init(ready_q, comparison_FCFS);
+			break;
+		case SJF:
+			priqueue_init(ready_q, comparison_SJF);	
+			break;
+		case PSJF:
+			priqueue_init(ready_q, comparison_PSJF);
+			break;
+		case PRI:
+			priqueue_init(ready_q, comparison_PRI);
+			break;
+		case PPRI:
+			priqueue_init(ready_q, comparison_PPRI);
+			break;
+		default:
+			priqueue_init(ready_q, comparison_RR);
+			break;
 	}
-	cores = temp;
-	q_scheme = scheme;
 }
 
 

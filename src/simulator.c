@@ -26,6 +26,8 @@ void print_usage(char *program_name)
 	fprintf(stderr, "Acceptable schemes are: fcfs, sjf, psjf, pri, ppri, rr#\n");
 }
 
+
+// The award for the worst function name ever goes to...
 int set_active_job(int job_id, int core_id, simulator_job_list_t *jobs, int active_jobs)
 {
 	int i;
@@ -226,16 +228,22 @@ int main(int argc, char **argv)
 	else if (scheme == RR) { printf("Round Robin (RR) with a quantum of %d", quantum); }
 	printf(" scheduling...\n\n");
 
+
+	// Initialize scheduler
 	scheduler_start_up(cores, scheme);
 
 
 	int time = 0, i, j;
 	int active_jobs = job_id, jobs_alive = 0;
 
+	// Track the remaining quantum time for each core
 	int *quantum_clock = malloc(cores * sizeof(int));
+
+	// What does this do
 	char **core_timing_diagram = malloc(cores * sizeof(char *));
 	int core_timing_diagram_size = 1024;
 
+	// Initialize above types
 	for (i = 0; i < cores; i++)
 	{
 		quantum_clock[i] = -1;
@@ -243,6 +251,8 @@ int main(int argc, char **argv)
 		core_timing_diagram[i][0] = '\0';
 	}
 
+
+	// Main loop
 	while (active_jobs > 0)
 	{
 		printf("=== [TIME %d] ===\n", time);
@@ -259,6 +269,7 @@ int main(int argc, char **argv)
 				int core_id = jobs[i].core_id;
 				int new_job_id = scheduler_job_finished(jobs[i].core_id, jobs[i].job_id, time);
 
+				// Reset quantum time
 				if (scheme == RR)
 					quantum_clock[jobs[i].core_id] = quantum;
 
@@ -267,9 +278,15 @@ int main(int argc, char **argv)
 					memcpy(&jobs[i], &jobs[active_jobs - 1], sizeof(simulator_job_list_t));
 				active_jobs--;
 				jobs_alive--;
+
+				// Since we deleted this job, repeat this
+				// value of i to account for the smaller size
 				i--;
 
-				// Set the new job
+				// Set the new job for the core
+				// I can't figure out what this code is doing,
+				// everything has misleading names, and there
+				// are no meaningful comments
 				if ( new_job_id != -1 && !set_active_job(new_job_id, core_id, jobs, active_jobs) )
 				{
 					printf("The scheduler_job_finished() selected an invalid job (job_id == %d).\n", new_job_id);
