@@ -72,6 +72,14 @@ void scheduler_start_up(int cores, scheme_t scheme)
  */
 int scheduler_new_job(int job_number, int time, int running_time, int priority)
 {
+	// Create and initialize job
+	job_t* daJob = (job_t*)malloc(sizeof(job_t));
+	daJob->value[0] = job_number;
+	daJob->value[1] = running_time;
+	daJob->value[2] = time;
+	daJob->value[3] = priority;
+
+	// Determine the appropriate core to run this job on
 	return -1;
 }
 
