@@ -21,8 +21,8 @@ int q_scheme;
 */
 typedef struct _job_t
 {
-	// Contains in order: arrival, burst, priority
-	int value[3];
+	// Contains in order: uuid, arrival, burst, priority
+	int value[4];
 } job_t;
 
 
@@ -177,7 +177,13 @@ void scheduler_clean_up()
   This function is not required and will not be graded. You may leave it
   blank if you do not find it useful.
  */
-void scheduler_show_queue()
+void scheduler_show_queue(priqueue_t* q)
 {
-
+	int size = priqueue_size(q);
+	if( 0 <= size){
+		for(int i=0; i<size; ++i){
+			int* value = (int*)priqueue_at(q, i);
+			printf("Job %d:\n\tArrived:\t%d\n\tBurst:\t%d\n\tPriority:\t%d", value[0], value[1], value[2], value[3]);
+		}	
+	}
 }
