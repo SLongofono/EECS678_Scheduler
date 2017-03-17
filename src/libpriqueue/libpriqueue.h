@@ -66,7 +66,7 @@ void * priqueue_at       (priqueue_t *q, int index);
 
 
 /**
- * @brief
+ * @brief Remove all elements with the given value at ptr
  */
 int    priqueue_remove   (priqueue_t *q, void *ptr);
 

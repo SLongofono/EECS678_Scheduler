@@ -8,6 +8,11 @@
 #include "libscheduler.h"
 #include "../libpriqueue/libpriqueue.h"
 
+// Global queues for each core
+priqueue_t *cores;
+
+// Global scheduling scheme
+int q_scheme;
 
 /**
   Stores information making up a job to be scheduled including any statistics.
@@ -16,7 +21,8 @@
 */
 typedef struct _job_t
 {
-
+	// Contains in order: arrival, burst, priority
+	int value[3];
 } job_t;
 
 
@@ -34,7 +40,13 @@ typedef struct _job_t
 */
 void scheduler_start_up(int cores, scheme_t scheme)
 {
-
+	// Set up global cores pointers to priority queues
+	priqueue_t *temp[cores];
+	for(int i=0; i<cores; ++i){
+		temp[i] = (priqueue_t *)malloc(sizeof(priqueue_t));
+	}
+	cores = temp;
+	q_scheme = scheme;
 }
 
 
