@@ -9,7 +9,7 @@
 #include "../libpriqueue/libpriqueue.h"
 
 // Global ready queue
-priqueue_t ready_q;//= (priqueue_t *)malloc(sizeof(priqueue_t));
+priqueue_t *ready_q;//= (priqueue_t *)malloc(sizeof(priqueue_t));
 
 // Track busy cores
 int *active_core;
@@ -23,6 +23,10 @@ typedef struct _job_t
 {
 	// Contains in order: uuid, arrival, burst, priority
 	int value[4];
+
+	// Negative if unassigned, otherwise the integer corresponding to the
+	// core in active_core
+	int core;
 } job_t;
 
 /*
@@ -55,6 +59,33 @@ int comparison_RR(const void *j1, const void *j2){
 
 
 /**
+ * Helper Functions
+ */
+
+/**
+ * @brief Determines the next job to be run in the queue
+ */
+
+
+/**
+ * @brief Returns the integer corresponding to the lowest free core
+ * @param numCores The number of cores in use, the size of active_core
+ * @return The lowest non-negative integer which corresponds to a free core,
+ * or -1 if no cores are free.
+ *
+ */
+int find_idle_core(int numCores){
+	int lowest = -1;
+	for(int i = 0; i<numCores; ++i){
+		if(0 == active_core[i] && i < lowest){
+				lowest = i;	
+		}	
+	}
+	return lowest;
+}
+
+
+/**
   Initalizes the scheduler.
  
   Assumptions:
@@ -71,26 +102,30 @@ void scheduler_start_up(int cores, scheme_t scheme)
 	// Set up global core tracker, initialized to zeros
 	active_core = (int *)calloc(cores, sizeof(int));
 
+	// Set up global ready queue on the heap
+	ready_q = (priqueue_t *)malloc(sizeof(priqueue_t));
+
 	switch(scheme){
 		case FCFS:
-			priqueue_init(&ready_q, comparison_FCFS);
+			priqueue_init(ready_q, comparison_FCFS);
 			break;
 		case SJF:
-			priqueue_init(&ready_q, comparison_SJF);	
+			priqueue_init(ready_q, comparison_SJF);	
 			break;
 		case PSJF:
-			priqueue_init(&ready_q, comparison_PSJF);
+			priqueue_init(ready_q, comparison_PSJF);
 			break;
 		case PRI:
-			priqueue_init(&ready_q, comparison_PRI);
+			priqueue_init(ready_q, comparison_PRI);
 			break;
 		case PPRI:
-			priqueue_init(&ready_q, comparison_PPRI);
+			priqueue_init(ready_q, comparison_PPRI);
 			break;
 		default:
-			priqueue_init(&ready_q, comparison_RR);
+			priqueue_init(ready_q, comparison_RR);
 			break;
 	}
+	printf("Created new queue with %d elements\n", priqueue_size(ready_q));
 }
 
 
@@ -116,6 +151,9 @@ void scheduler_start_up(int cores, scheme_t scheme)
  */
 int scheduler_new_job(int job_number, int time, int running_time, int priority)
 {
+
+	int core_scheduled = -1;
+
 	// Create and initialize job
 	job_t* daJob = (job_t*)malloc(sizeof(job_t));
 	daJob->value[0] = job_number;
@@ -123,8 +161,21 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
 	daJob->value[2] = time;
 	daJob->value[3] = priority;
 
-	// Determine the appropriate core to run this job on
-	return -1;
+	// Assume this will not be immediately scheduled
+	daJob->core = -1;
+
+	// Add the new Job to the back of the queue
+	int status = priqueue_offer(ready_q, daJob);
+
+	printf("Inserted new job at position %d\n", status);
+
+
+	printf("Current ready queue size is: %d\n", priqueue_size(ready_q));
+	// Determine if the new job should be scheduled, and if so report the
+	// core which it will run on
+	
+
+	return core_scheduled;
 }
 
 
@@ -222,20 +273,29 @@ void scheduler_clean_up()
   This function may print out any debugging information you choose. This
   function will be called by the simulator after every call the simulator
   makes to your scheduler.
-  In our provided output, we have implemented this function to list the jobs in the order they are to be scheduled. Furthermore, we have also listed the current state of the job (either running on a given core or idle). For example, if we have a non-preemptive algorithm and job(id=4) has began running, job(id=2) arrives with a higher priority, and job(id=1) arrives with a lower priority, the output in our sample output will be:
+  In our provided output, we have implemented this function to list the jobs in
+  the order they are to be scheduled. Furthermore, we have also listed the
+  current state of the job (either running on a given core or idle).
+  For example, if we have a non-preemptive algorithm and job(id=4) has began
+  running, job(id=2) arrives with a higher priority, and job(id=1) arrives with
+  a lower priority, the output in our sample output will be:
 
     2(-1) 4(0) 1(-1)  
   
   This function is not required and will not be graded. You may leave it
   blank if you do not find it useful.
+
+  #### NOTE NOTE NOTE ####
+  This function is also not called with arguments, even though the *included* signature
+  clearly takes arguments.  This means if you try to use the parameter, assuming it
+  is there, you are going to have a bad time.  I will seriously punch the original
+  authors of this code in the face if I ever meet them.  I shouldn't have to go
+  through their code to look for intentionally inserted errors.
  */
 void scheduler_show_queue(priqueue_t* q)
 {
-	int size = priqueue_size(q);
-	if( 0 <= size){
-		for(int i=0; i<size; ++i){
-			int* value = (int*)priqueue_at(q, i);
-			printf("Job %d:\n\tArrived:\t%d\n\tBurst:\t%d\n\tPriority:\t%d", value[0], value[1], value[2], value[3]);
-		}	
+	for(int i=0; i<priqueue_size(ready_q); ++i){
+		job_t *daJob = (job_t*)priqueue_at(ready_q, 0);
+		printf("\n\tJob %d:\n\tArrived:\t%d\n\tBurst:\t\t%d\n\tPriority:\t%d", daJob->value[0], daJob->value[1], daJob->value[2], daJob->value[3]);	
 	}
 }
