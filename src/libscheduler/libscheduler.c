@@ -9,7 +9,7 @@
 #include "../libpriqueue/libpriqueue.h"
 
 // Global ready queue
-priqueue_t *ready_q;
+priqueue_t ready_q;//= (priqueue_t *)malloc(sizeof(priqueue_t));
 
 // Track busy cores
 int *active_core;
@@ -68,26 +68,27 @@ int comparison_RR(const void *j1, const void *j2){
 */
 void scheduler_start_up(int cores, scheme_t scheme)
 {
-	// Set up global core tracker
-	active_core = (int *)malloc(cores * sizeof(int));
+	// Set up global core tracker, initialized to zeros
+	active_core = (int *)calloc(cores, sizeof(int));
+
 	switch(scheme){
 		case FCFS:
-			priqueue_init(ready_q, comparison_FCFS);
+			priqueue_init(&ready_q, comparison_FCFS);
 			break;
 		case SJF:
-			priqueue_init(ready_q, comparison_SJF);	
+			priqueue_init(&ready_q, comparison_SJF);	
 			break;
 		case PSJF:
-			priqueue_init(ready_q, comparison_PSJF);
+			priqueue_init(&ready_q, comparison_PSJF);
 			break;
 		case PRI:
-			priqueue_init(ready_q, comparison_PRI);
+			priqueue_init(&ready_q, comparison_PRI);
 			break;
 		case PPRI:
-			priqueue_init(ready_q, comparison_PPRI);
+			priqueue_init(&ready_q, comparison_PPRI);
 			break;
 		default:
-			priqueue_init(ready_q, comparison_RR);
+			priqueue_init(&ready_q, comparison_RR);
 			break;
 	}
 }
