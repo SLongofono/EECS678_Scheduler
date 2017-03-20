@@ -13,6 +13,10 @@ priqueue_t *ready_q;//= (priqueue_t *)malloc(sizeof(priqueue_t));
 
 // Track busy cores
 int *active_core;
+int num_cores;
+
+// Keep track of scheme
+scheme_t policy;
 
 /**
   Stores information making up a job to be scheduled including any statistics.
@@ -34,7 +38,11 @@ typedef struct _job_t
  */
 
 int comparison_FCFS(const void *j1, const void *j2){
-	return 0;
+	job_t *this;
+	job_t *that;
+	this = (job_t*)j1;
+	that = (job_t*)j2;
+	return (this->value[1] - that->value[1]);
 }
 
 int comparison_SJF(const void *j1, const void *j2){
@@ -102,8 +110,12 @@ void scheduler_start_up(int cores, scheme_t scheme)
 	// Set up global core tracker, initialized to zeros
 	active_core = (int *)calloc(cores, sizeof(int));
 
+	num_cores = cores;
+
 	// Set up global ready queue on the heap
 	ready_q = (priqueue_t *)malloc(sizeof(priqueue_t));
+
+	policy = scheme;
 
 	switch(scheme){
 		case FCFS:
@@ -173,6 +185,43 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
 	printf("Current ready queue size is: %d\n", priqueue_size(ready_q));
 	// Determine if the new job should be scheduled, and if so report the
 	// core which it will run on
+	switch(policy){
+		case FCFS:
+			// If there are any waiting, there is nothing to do
+			if(0 == priqueue_size(ready_q)){
+				// Otherwise, assign this to the lowest free
+				// core
+				core_scheduled = find_idle_core(num_cores);
+			}
+			break;
+		case SJF:
+			// Determine if this is the shortest known job which
+			// is not already running
+			//
+			break;
+		case PSJF:
+			// Determine if this is the job with the shortest
+			// remaining time
+			break;
+		case PRI:
+			// Determine if this is the highest priority job which
+			// is not already running
+			break;
+		case PPRI:
+			// Determine if this is the job with the highest
+			// priority
+			break;
+		default:
+			// RR, If there are any waiting, there is nothing to
+			// do
+			if(0 == priqueue_size(ready_q)){
+				// Otherwise, assign this to the lowest free
+				// core
+				core_scheduled = find_idle_core(num_cores);
+			}
+			break;
+	
+	}
 	
 
 	return core_scheduled;
