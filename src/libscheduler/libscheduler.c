@@ -67,6 +67,51 @@ int comparison_RR(const void *j1, const void *j2){
 
 
 /**
+ * Functions for determining and setting up the next job in the queue
+ *
+ * All operate under the assumption that the parameter is the new job or null
+ * if no new jobs are present.
+ * 
+ * Will return the next job to be scheduled, having already properly scheduled
+ * it.  That is, the return value is solely for the simulator's sake.
+ *
+ * Everything must be ready to go, in case these are called from
+ * scheduler_new_job().
+ */
+
+int next_job_FCFS(job_t* new_job){
+	if(NULL != new_job){
+		
+	}
+	else{
+		// Find the earliest arrival among jobs which are not
+		// currently running
+	}
+	job_t * head = priqueue_peek(ready_q);
+	return head->value[0];
+}
+
+int next_job_SJF(job_t *new_job){
+	return -1;
+}
+
+int next_job_PSJF(job_t *new_job){
+	return -1;
+}
+
+int next_job_PRI(job_t *new_job){
+	return -1;
+}
+
+int next_job_PPRI(job_t *new_job){
+	return -1;
+}
+
+int next_job_RR(job_t *new_job){
+	return -1;
+}
+
+/**
  * Helper Functions
  */
 
@@ -83,7 +128,7 @@ int comparison_RR(const void *j1, const void *j2){
  *
  */
 int find_idle_core(int numCores){
-	int lowest = -1;
+	int lowest = 9000;  // It's over 9000!
 	for(int i = 0; i<numCores; ++i){
 		if(0 == active_core[i] && i < lowest){
 				lowest = i;	
@@ -153,6 +198,10 @@ void scheduler_start_up(int cores, scheme_t scheme)
   Assumptions:
     - You may assume that every job wil have a unique arrival time.
 
+  NOTES:  Here, we need to determine if we need to change anything, and update everything
+  	on this end for execution immediately.
+
+
   @param job_number a globally unique identification number of the job arriving.
   @param time the current time of the simulator.
   @param running_time the total number of time units this job will run before it will be finished.
@@ -167,14 +216,12 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
 	int core_scheduled = -1;
 
 	// Create and initialize job
-	job_t* daJob = (job_t*)malloc(sizeof(job_t));
+	job_t* daJob 	= (job_t*)malloc(sizeof(job_t));
 	daJob->value[0] = job_number;
 	daJob->value[1] = running_time;
 	daJob->value[2] = time;
 	daJob->value[3] = priority;
-
-	// Assume this will not be immediately scheduled
-	daJob->core = -1;
+	daJob->core	= -1;
 
 	// Add the new Job to the back of the queue
 	int status = priqueue_offer(ready_q, daJob);
@@ -183,47 +230,34 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
 
 
 	printf("Current ready queue size is: %d\n", priqueue_size(ready_q));
-	// Determine if the new job should be scheduled, and if so report the
-	// core which it will run on
+	
+	// Determine and set up for the next round of jobs.  It is assumed
+	// that by this point, all inactive jobs have been destroyed, and that
+	// this method call is the last step before the next execution
+	// interval, per the instructions.
+	//
+	// Each of the methods below acts accordingly, updating all known jobs
+	// to their correct cores and statuses.
 	switch(policy){
 		case FCFS:
-			// If there are any waiting, there is nothing to do
-			if(0 == priqueue_size(ready_q)){
-				// Otherwise, assign this to the lowest free
-				// core
-				core_scheduled = find_idle_core(num_cores);
-			}
+			core_scheduled = next_job_FCFS(daJob);
 			break;
 		case SJF:
-			// Determine if this is the shortest known job which
-			// is not already running
-			//
+			core_scheduled = next_job_SJF(daJob);
 			break;
 		case PSJF:
-			// Determine if this is the job with the shortest
-			// remaining time
+			core_scheduled = next_job_PSJF(daJob);
 			break;
 		case PRI:
-			// Determine if this is the highest priority job which
-			// is not already running
+			core_scheduled = next_job_PRI(daJob);
 			break;
 		case PPRI:
-			// Determine if this is the job with the highest
-			// priority
+			core_scheduled = next_job_PPRI(daJob);
 			break;
 		default:
-			// RR, If there are any waiting, there is nothing to
-			// do
-			if(0 == priqueue_size(ready_q)){
-				// Otherwise, assign this to the lowest free
-				// core
-				core_scheduled = find_idle_core(num_cores);
-			}
-			break;
-	
+			core_scheduled = next_job_RR(daJob);
 	}
 	
-
 	return core_scheduled;
 }
 
@@ -236,6 +270,10 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
   finished job, return the job_number of the job that should be scheduled to
   run on core core_id.
  
+  NOTES:	Here, we need to find the enxt job, and commit the changes on
+  		this end.  There may be several such calls due to the way the
+		simulator is written.
+
   @param core_id the zero-based index of the core where the job was located.
   @param job_number a globally unique identification number of the job.
   @param time the current time of the simulator.
@@ -243,7 +281,44 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
   @return -1 if core should remain idle.
  */
 int scheduler_job_finished(int core_id, int job_number, int time)
-{
+{	
+	int next_scheduled = -1;
+	job_t* curr_job;
+	// Find and destroy the job in question
+	for(int i = 0; i<priqueue_size(ready_q); ++i){
+		curr_job = priqueue_peek(ready_q);
+		if(job_number == curr_job->value[0]){
+			priqueue_remove(ready_q, (void*)curr_job);
+			break;	
+		}
+	}
+
+	// Update everything
+	switch(policy){
+		case FCFS:
+			next_job_FCFS(NULL);
+			break;
+		case SJF:
+			next_job_SJF(NULL);
+			break;
+		case PSJF:
+			next_job_PSJF(NULL);
+			break;
+		case PRI:
+			next_job_PRI(NULL);
+			break;
+		case PPRI:
+			next_job_PPRI(NULL);
+			break;
+		default:
+			next_job_RR(NULL);
+		
+	}
+	
+	// return the next item to run on the core in question, or -1 if idle
+	if(active_core[core_id]){
+		return active_core[core_id];
+	}
 	return -1;
 }
 
