@@ -25,8 +25,8 @@ scheme_t policy;
 */
 typedef struct _job_t
 {
-	// Contains in order: uuid, arrival, burst, priority
-	int value[4];
+	// Contains in order: uuid, arrival, burst, priority, running, waiting
+	int value[6];
 
 	// Negative if unassigned, otherwise the integer corresponding to the
 	// core in active_core
@@ -42,7 +42,12 @@ int comparison_FCFS(const void *j1, const void *j2){
 	job_t *that;
 	this = (job_t*)j1;
 	that = (job_t*)j2;
-	return (this->value[1] - that->value[1]);
+	
+	// Since we are guaranteed unique arrival times, simply subtract them.
+	// If the former came sooner than the latter, the result will be
+	// positive.
+	return (that->value[1] - this->value[1]);
+
 }
 
 int comparison_SJF(const void *j1, const void *j2){
@@ -80,15 +85,34 @@ int comparison_RR(const void *j1, const void *j2){
  */
 
 int next_job_FCFS(job_t* new_job){
-	if(NULL != new_job){
-		
+	job_t* next_job;
+	int length = priqueue_size(ready_q);
+	if(0 == length){
+		return -1;	
+	}
+	else if(NULL != new_job){
+		// Fins the earliest arrival among existing 
+		next_job = new_job;
 	}
 	else{
 		// Find the earliest arrival among jobs which are not
 		// currently running
+		next_job = priqueue_peek(ready_q);
 	}
-	job_t * head = priqueue_peek(ready_q);
-	return head->value[0];
+	for(int i = 0; i<length; ++i){
+		job_t *current_job = priqueue_at(ready_q, i);
+		
+		// If this job is not running
+		if(0 > current_job->core){
+
+			// Check if this job arrived earlier than any others
+			// so far
+			if(0 < comparison_FCFS(next_job, current_job)){
+				next_job = current_job;
+			}
+		}
+	}
+	return next_job->value[0];
 }
 
 int next_job_SJF(job_t *new_job){
@@ -115,26 +139,101 @@ int next_job_RR(job_t *new_job){
  * Helper Functions
  */
 
+
 /**
- * @brief Determines the next job to be run in the queue
+ * @brief updates job metrics
  */
+void update_job_times(){
+	job_t *current_job;
+	for(int i=0; i<priqueue_size(ready_q); ++i){
+		current_job = priqueue_at(ready_q, i);
+		if(0 <= current_job->core){
+			// This job is running next round, increment running
+			// time
+			current_job->value[4]++;
+		}
+		else{
+			// This job is not running next round, increment
+			// waiting time.
+			current_job->value[5]++;
+		}
+	}	
+}
+
+
+/**
+ * @brief Associates a job with a core and vice versa
+ *
+ * Dies if anything is amiss
+ */
+
+void update_core(int num_cores, int core, int job_number){
+
+	if(core > num_cores){
+		printf("[ Error ]\t\tTried to update nonexistent core...\n");
+		assert(0);	
+	}
+
+	// Find the job in the global queue and mark it as running on the
+	// specified core
+	
+	job_t *job;
+	int found = 0;
+	for(int i = 0; i<priqueue_size(ready_q); ++i){
+		job = priqueue_at(ready_q, i);
+		if(job_number == job->value[0]){
+			// Update job
+			job->core = core;
+
+			// Flag success
+			found = 1;
+			break;		
+		}
+	}
+
+	if(!found){
+		printf("[ Error ]\t\tTried to update core with nonexistent job...\n");
+		assert(0);	
+	}
+
+	// Update cores and return success
+	active_core[core] = job_number;
+	return;
+}
 
 
 /**
  * @brief Returns the integer corresponding to the lowest free core
- * @param numCores The number of cores in use, the size of active_core
+ * @param num_cores The number of cores in use, the size of active_core
  * @return The lowest non-negative integer which corresponds to a free core,
  * or -1 if no cores are free.
  *
  */
-int find_idle_core(int numCores){
+int find_idle_core(int num_cores){
 	int lowest = 9000;  // It's over 9000!
-	for(int i = 0; i<numCores; ++i){
+	for(int i = 0; i<num_cores; ++i){
 		if(0 == active_core[i] && i < lowest){
 				lowest = i;	
 		}	
 	}
 	return lowest;
+}
+
+
+/**
+ * @brief Returns the job with the job number passed in, or NULL if no such job exists.
+ */
+job_t * get_job(int job_number){
+	job_t* result = NULL;
+	job_t *current_job;
+	for(int i = 0; i<priqueue_size(ready_q); ++i){
+		current_job = priqueue_at(ready_q, i);
+		if(job_number == current_job->value[0]){
+			result = current_job;
+			break;
+		}
+	}
+	return result;
 }
 
 
@@ -162,7 +261,7 @@ void scheduler_start_up(int cores, scheme_t scheme)
 
 	policy = scheme;
 
-	switch(scheme){
+	switch(policy){
 		case FCFS:
 			priqueue_init(ready_q, comparison_FCFS);
 			break;
@@ -213,14 +312,14 @@ void scheduler_start_up(int cores, scheme_t scheme)
 int scheduler_new_job(int job_number, int time, int running_time, int priority)
 {
 
-	int core_scheduled = -1;
-
 	// Create and initialize job
 	job_t* daJob 	= (job_t*)malloc(sizeof(job_t));
 	daJob->value[0] = job_number;
 	daJob->value[1] = running_time;
 	daJob->value[2] = time;
 	daJob->value[3] = priority;
+	daJob->value[4] = 0;
+	daJob->value[5] = 0;
 	daJob->core	= -1;
 
 	// Add the new Job to the back of the queue
@@ -238,27 +337,34 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
 	//
 	// Each of the methods below acts accordingly, updating all known jobs
 	// to their correct cores and statuses.
+
 	switch(policy){
-		case FCFS:
-			core_scheduled = next_job_FCFS(daJob);
-			break;
-		case SJF:
-			core_scheduled = next_job_SJF(daJob);
-			break;
-		case PSJF:
-			core_scheduled = next_job_PSJF(daJob);
-			break;
-		case PRI:
-			core_scheduled = next_job_PRI(daJob);
+		case RR:
+			next_job_RR(daJob);
 			break;
 		case PPRI:
-			core_scheduled = next_job_PPRI(daJob);
+			next_job_PPRI(daJob);
 			break;
-		default:
-			core_scheduled = next_job_RR(daJob);
+		case PRI:
+			next_job_PRI(daJob);
+			break;
+		case PSJF:
+			next_job_PSJF(daJob);
+			break;
+		case SJF:
+			next_job_SJF(daJob);
+			break;
+		case FCFS:
+			next_job_FCFS(daJob);
+			break;
 	}
-	
-	return core_scheduled;
+
+	// Since this is the last step before the next execution round, update
+	// local time records to we can accurately gauge metrics on request.
+	update_job_times();
+
+	// The job in question will have its core already assigned
+	return get_job(job_number)->core;
 }
 
 
@@ -420,6 +526,6 @@ void scheduler_show_queue(priqueue_t* q)
 {
 	for(int i=0; i<priqueue_size(ready_q); ++i){
 		job_t *daJob = (job_t*)priqueue_at(ready_q, 0);
-		printf("\n\tJob %d:\n\tArrived:\t%d\n\tBurst:\t\t%d\n\tPriority:\t%d", daJob->value[0], daJob->value[1], daJob->value[2], daJob->value[3]);	
+		printf("\n\tJob %d:\n\tArrived:\t%d\n\tBurst:\t\t%d\n\tPriority:\t%d\n\tCore:\t\t%d", daJob->value[0], daJob->value[1], daJob->value[2], daJob->value[3], daJob->core);	
 	}
 }
