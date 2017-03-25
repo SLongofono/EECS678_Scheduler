@@ -250,6 +250,8 @@ int comparison_PPRI(const void *j1, const void *j2){
 	}
 	else{
 		// Positive if the former is higher priority
+		// Note that this is exactly backwards wrt what we discussed
+		// in class.
 		return (this->value[3] - that->value[3]);	
 	}
 }
@@ -433,7 +435,112 @@ int next_job_SJF(job_t *new_job, int time){
 int next_job_PSJF(job_t *new_job, int time){
 	// Any preempted jobs should have their run time updated as they are
 	// pulled off
-	return -1;
+	
+	job_t *next_job;
+	
+	// Clear all cores and update jobs
+	for(int j = 0; j<NUM_CORES; ++j){
+		printf("Updating core %d, job %d...\n", j, active_core[j]);
+		next_job = get_job(active_core[j]);
+
+		if(NULL != next_job){
+
+			active_core[j] = -1;
+			next_job->core = -1;
+		
+			printf("Updating time, job %d...\n", next_job->value[0]);
+
+			// update running time
+			if(next_job->value[4] < 0){
+				if(next_job->value[6] >= 0){
+					next_job->value[4] = time-next_job->value[6];
+				}
+				else{
+					next_job->value[4] = 0;	
+				}
+			}
+			else{
+				next_job->value[4] += time-next_job->value[6];
+			}
+			// update last active time
+			next_job->value[6] = time;
+		}
+		else{
+			printf("No job on core %d...\n", j);
+		}
+	}
+
+
+	next_job = NULL;
+	int length = priqueue_size(ready_q);
+	int found = 0;
+	int result = -1;
+	if(length > 0){
+	
+		// If not empty, search through the queue
+		// Everything should be sorted by arrival automatically by
+		// priqueue_offer
+		printf("Finding next job for SJF...\n");
+		
+		int idle = get_idle_core();
+		
+		// While there are cores left to be scheduled
+		while(9000 != idle){
+
+			for(int i = 0; i<length; ++i){
+				next_job = (job_t*)priqueue_at(ready_q, i);
+			
+				// If the current job is not finished..
+				if(next_job->finished != 1){
+		
+					printf("Job %d is not finished, it will be the next job...\n", next_job->value[0]);
+						found = 1;
+						break;
+				}
+				else{
+					printf("Job %d is finished, moving on...\n", next_job->value[0]);	
+				}
+			}
+
+			if(found){
+				
+				// Update the idle core with the next job		
+				printf("Updating core %d, currently running: %d\n", idle, active_core[idle]);
+				update_core(get_idle_core(), next_job);
+				printf("Core %d is now running job %d\n", idle, active_core[idle]);
+				
+				
+
+
+				// Update latency if not already set
+				// Needs to be done this way since there could
+				// be multiple schedulings between each time
+				// unit
+				if(next_job->value[4] > 0 && next_job->value[7] < 0){
+					// This job just ran,
+					// update its latency to the previous
+					// time unit if it has not already
+					// been set
+					printf("Job %d has now run for %d units, updating latency to %d\n", next_job->value[0], next_job->value[4], time - next_job->value[4]-next_job->value[1]);
+					next_job->value[7] = (time - next_job->value[4] - next_job->value[1]);	
+				}
+				
+				// Update last active time to next time cycle
+				next_job->value[6] = time;	
+				
+				// Get next core to be scheduled
+				idle = get_idle_core();
+							
+				// Update return with job number
+				result = next_job->value[0];
+			}
+			else{
+				printf("No valid jobs found to schedule\n");
+				break;
+			}
+		}// End while
+	} // End if(length > 0)
+	return result;
 }
 
 int next_job_PRI(job_t *new_job, int time){
@@ -486,7 +593,14 @@ int next_job_PRI(job_t *new_job, int time){
 				next_job->value[6] = time;
 
 				// Update latency if not already set
-				if(next_job->value[7] < 0){
+				// Needs to be done this way since there could
+				// be multiple schedulings between each time
+				// unit
+				if(next_job->value[4] == 1 && next_job->value[6] < 0){
+					// This job just ran 1 unit of time,
+					// update its latency to the previous
+					// time unit if it has not already
+					// been set
 					next_job->value[7] = (time - next_job->value[1]);	
 				}
 			}
@@ -559,12 +673,16 @@ void scheduler_start_up(int cores, scheme_t scheme)
 			priqueue_init(ready_q, comparison_FCFS);
 			break;
 		case SJF:
-		case PSJF:
 			priqueue_init(ready_q, comparison_SJF);
 			break;
+		case PSJF:
+			priqueue_init(ready_q, comparison_PSJF);
+			break;
 		case PRI:
-		case PPRI:
 			priqueue_init(ready_q, comparison_PRI);
+			break;
+		case PPRI:
+			priqueue_init(ready_q, comparison_PPRI);
 			break;
 		default:
 			// Round robin
@@ -708,7 +826,6 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
  */
 int scheduler_job_finished(int core_id, int job_number, int time)
 {	
-	int next_scheduled = -1;
 	job_t* curr_job;
 
 	// Find and update the job in question
@@ -725,6 +842,16 @@ int scheduler_job_finished(int core_id, int job_number, int time)
 	// known active time
 	curr_job->value[4] += (time - curr_job->value[6]);
 
+
+	// If latency was never set, this job ran start to finished
+	// uncontested
+	if(0 > curr_job->value[7]){
+		// Thus latency is current time less running time less arrival
+		// time
+		printf("Time %d, job %d has run for %d time units\n", time, curr_job->value[0], curr_job->value[4]);
+		printf("Job %d latency update to %d\n", curr_job->value[0], time-curr_job->value[4]-curr_job->value[1]);
+		curr_job->value[7] = time - curr_job->value[4] - curr_job->value[1];
+	}
 	
 	printf("Freeing core %d, currently running job %d...\n", core_id, active_core[core_id]);
 	// Free the core for downstream helpers
