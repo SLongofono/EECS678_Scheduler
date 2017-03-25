@@ -189,9 +189,9 @@ int comparison_SJF(const void *j1, const void *j2){
 			return (this->value[1] - that->value[1]);
 		}
 
-		// This result will be positive if this job has a shorter running
+		// This result will be positive if this job has a longer running
 		// time remaining.
-		return (t2-t1);
+		return (t1-t2);
 	}
 }
 
@@ -227,6 +227,58 @@ int comparison_PRI(const void *j1, const void *j2){
 			return (this->value[3] - that->value[3]);	
 		}
 	}
+}
+
+
+int comparison_PPRI(const void *j1, const void *j2){
+
+	job_t *this;
+	job_t *that;
+	this = (job_t*)j1;
+	that = (job_t*)j2;
+	
+	// Evaluate them based on priority, then arrival
+	if(this->value[3] == that->value[3]){
+		
+		// Since we are guaranteed unique arrival times, simply subtract them.
+		// If the latter came sooner than the former, the result will be
+		// positive.
+		printf("Job %d arrived at time %d\n", this->value[0], this->value[1]);
+		printf("job %d arrived at time %d\n", that->value[0], that->value[1]);
+		printf("Job %d came %d seconds before job %d...\n", this->value[0], that->value[1]-this->value[1], that->value[0]);
+		return (this->value[1] - that->value[1]);
+	}
+	else{
+		// Positive if the former is higher priority
+		return (this->value[3] - that->value[3]);	
+	}
+}
+
+
+int comparison_PSJF(const void *j1, const void *j2){
+	
+	job_t *this;
+	job_t *that;
+	int t1, t2;
+	this = (job_t *)j1;
+	that = (job_t *)j2;
+
+
+	// Compute running time remaining, defined as the burst time minus the
+	// running time.
+	t1 = this->value[2] - this->value[4];
+	t2 = that->value[2] - that->value[4];
+
+	// If the remaining time is equal, compare the arrival times per the
+	// rubric 
+	if(t2 == t1){
+		// This result will be positive if the latter job arrived first
+		return (this->value[1] - that->value[1]);
+	}
+
+	// This result will be positive if this job has a longer running
+	// time remaining.
+	return (t1-t2);
 }
 
 
@@ -293,11 +345,6 @@ int next_job_FCFS(job_t* new_job, int time){
 
 				// Update latency if not already set
 				if(next_job->value[7] < 0){
-					// Need to subtract one due to the way
-					// time is handled in the simulator (a
-					// job is never executed when it
-					// arrives, it always waits at least
-					// until the next time unit
 					next_job->value[7] = (time - next_job->value[1]);	
 				}
 			}
@@ -366,11 +413,6 @@ int next_job_SJF(job_t *new_job, int time){
 
 				// Update latency if not already set
 				if(next_job->value[7] < 0){
-					// Need to subtract one due to the way
-					// time is handled in the simulator (a
-					// job is never executed when it
-					// arrives, it always waits at least
-					// until the next time unit
 					next_job->value[7] = (time - next_job->value[1]);	
 				}
 			}
@@ -445,11 +487,6 @@ int next_job_PRI(job_t *new_job, int time){
 
 				// Update latency if not already set
 				if(next_job->value[7] < 0){
-					// Need to subtract one due to the way
-					// time is handled in the simulator (a
-					// job is never executed when it
-					// arrives, it always waits at least
-					// until the next time unit
 					next_job->value[7] = (time - next_job->value[1]);	
 				}
 			}
