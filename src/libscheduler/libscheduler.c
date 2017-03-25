@@ -28,8 +28,8 @@ scheme_t policy;
 typedef struct _job_t
 {
 	// Contains in order: uuid, arrival, burst, priority, runtime, end,
-	// last active time
-	int value[7];
+	// last active time, latency
+	int value[8];
 
 	// Negative if unassigned, otherwise the integer corresponding to the
 	// core in active_core
@@ -258,6 +258,16 @@ int next_job_FCFS(job_t* new_job, int time){
 				
 				// Update last active time to next time cycle
 				next_job->value[6] = time;
+
+				// Update latency if not already set
+				if(next_job->value[7] < 0){
+					// Need to subtract one due to the way
+					// time is handled in the simulator (a
+					// job is never executed when it
+					// arrives, it always waits at least
+					// until the next time unit
+					next_job->value[7] = (time - next_job->value[1] - 1);	
+				}
 			}
 			else{
 				printf("No idle cores found, get_idle returned %d\n", idle);	
@@ -400,6 +410,7 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
 	daJob->value[4] = 0;			// Cumulative running time
 	daJob->value[5] = 0;			// End time
 	daJob->value[6] = -1;			// Last active time
+	daJob->value[7] = -1;			// Scheduling latency
 	daJob->core	= -1;			// Active core
 	daJob->finished = 0;			// Complete/Incomplete
 
@@ -589,7 +600,15 @@ int scheduler_quantum_expired(int core_id, int time)
  */
 float scheduler_average_waiting_time()
 {
-	return 0.0;
+	job_t * current_job;
+	int sum = 0;
+	for(int i = 0; i<priqueue_size(ready_q); ++i){
+		current_job = (job_t *)priqueue_at(ready_q, i);
+
+		// waiting time is total time less running time
+		sum += (current_job->value[5] - current_job->value[1] - current_job->value[4]);
+	}
+	return (1.0 * sum)/priqueue_size(ready_q);
 }
 
 
@@ -607,7 +626,17 @@ float scheduler_average_waiting_time()
  */
 float scheduler_average_turnaround_time()
 {
-	return 0.0;
+	int time;
+	job_t *current_job;
+	for(int i = 0; i<priqueue_size(ready_q); ++i){
+		current_job = (job_t*)priqueue_at(ready_q, i);
+		// Add in total time (end-start-1)
+		// Need to subtract 1 because nothing actually runs when it
+		// arrives according to the rubric (it arrives, gets
+		// scheduled, and then runs the next time unit)
+		time += (current_job->value[5] - current_job->value[1]) -1 ;
+	}
+	return (1.0 * time)/priqueue_size(ready_q);
 }
 
 
@@ -623,6 +652,13 @@ float scheduler_average_turnaround_time()
  */
 float scheduler_average_response_time()
 {
+	int time;
+	job_t *current_job;
+	for(int i = 0; i<priqueue_size(ready_q); ++i){
+		current_job = (job_t*)priqueue_at(ready_q, i);
+		time += current_job->value[7];
+	}
+	return (1.0 * time)/priqueue_size(ready_q);
 	return 0.0;
 }
 
