@@ -39,6 +39,15 @@ typedef struct _job_t
 
 
 /**
+ * Stores information to force our queue type to behave as a normal FIFO queue
+ */
+typedef struct rr_job_t{
+	// Real job number, order number
+	int value[2];
+} rr_job_t;
+
+
+/**
  * Helper Functions
  */
 
@@ -122,7 +131,7 @@ int comparison_RR(const void *j1, const void *j2){
 	that = (int*)j2;
 	// Assuming this is properly updated, this should be positive when
 	// this should run next
-	return that-this;
+	return this-that;
 }
 
 int comparison_FCFS(const void *j1, const void *j2){
@@ -159,21 +168,31 @@ int comparison_SJF(const void *j1, const void *j2){
 	this = (job_t *)j1;
 	that = (job_t *)j2;
 
-	// Compute running time remaining, defined as the burst time minus the
-	// running time.
-	t1 = this->value[2] - this->value[4];
-	t2 = that->value[2] - that->value[4];
 
-	// If the remaining time is equal, compare the arrival times per the
-	// rubric 
-	if(t2 == t1){
-		// This result will be positive if this job arrived first
-		return (that->value[1] - this->value[1]);
+	// currently running jobs take precedence
+	if(0 > this->core && 0 <= that->core){
+		return 1;
 	}
+	else if(0 > that->core && 0 <= this->core ){
+		return -1;
+	}
+	else{
+		// Compute running time remaining, defined as the burst time minus the
+		// running time.
+		t1 = this->value[2] - this->value[4];
+		t2 = that->value[2] - that->value[4];
 
-	// This result will be positive if this job has a shorter running
-	// time remaining.
-	return (t2-t1);
+		// If the remaining time is equal, compare the arrival times per the
+		// rubric 
+		if(t2 == t1){
+			// This result will be positive if the latter job arrived first
+			return (this->value[1] - that->value[1]);
+		}
+
+		// This result will be positive if this job has a shorter running
+		// time remaining.
+		return (t2-t1);
+	}
 }
 
 
@@ -181,20 +200,33 @@ int comparison_PRI(const void *j1, const void *j2){
 
 	job_t *this;
 	job_t *that;
-	this = (job_t *)j1;
-	that = (job_t *)j2;
-
-	// If the priority is equal, compare the arrival times per the
-	// rubric 
-	if(this->value[3] == that->value[3]){
-		// This result will be positive if this job arrived first
-		return (that->value[1] - this->value[1]);
+	this = (job_t*)j1;
+	that = (job_t*)j2;
+	
+	// currently running jobs take precedence
+	if(0 > this->core && 0 <= that->core){
+		return 1;
 	}
-
-	// This result will be positive if this job has a higher priority than
-	// the other
-	return (this->value[3] - that->value[3]);
-	return 0;
+	else if(0 > that->core && 0 <= this->core ){
+		return -1;
+	}
+	else{
+		// Otherwise, evaluate them based on priority, then arrival
+		if(this->value[3] == that->value[3]){
+			
+			// Since we are guaranteed unique arrival times, simply subtract them.
+			// If the latter came sooner than the former, the result will be
+			// positive.
+			printf("Job %d arrived at time %d\n", this->value[0], this->value[1]);
+			printf("job %d arrived at time %d\n", that->value[0], that->value[1]);
+			printf("Job %d came %d seconds before job %d...\n", this->value[0], that->value[1]-this->value[1], that->value[0]);
+			return (this->value[1] - that->value[1]);
+		}
+		else{
+			// Positive if the former is higher priority
+			return (this->value[3] - that->value[3]);	
+		}
+	}
 }
 
 
@@ -266,7 +298,7 @@ int next_job_FCFS(job_t* new_job, int time){
 					// job is never executed when it
 					// arrives, it always waits at least
 					// until the next time unit
-					next_job->value[7] = (time - next_job->value[1] - 1);	
+					next_job->value[7] = (time - next_job->value[1]);	
 				}
 			}
 			else{
@@ -284,7 +316,76 @@ int next_job_FCFS(job_t* new_job, int time){
 }
 
 int next_job_SJF(job_t *new_job, int time){
-	return -1;
+	job_t* next_job = NULL;
+	int length = priqueue_size(ready_q);
+	int found = 0;
+	int result = -1;
+	if(length > 0){
+	
+		// If not empty, search through the queue
+		// Everything should be sorted by arrival automatically by
+		// priqueue_offer
+		printf("Finding next job for SJF...\n");
+
+		for(int i = 0; i<length; ++i){
+			next_job = (job_t*)priqueue_at(ready_q, i);
+			
+			// If the current job is not finished..
+			if(next_job->finished != 1){
+		
+				printf("Job %d is not finished(%d)...\n", next_job->value[0], next_job->finished);
+				
+				// and it is not already running...
+				if(-1 <= next_job->core){
+				
+					printf("and not running, it will be the next job...\n");
+					found = 1;
+					break;
+				}
+				else{
+					printf("Job %d is running, moving on...\n", next_job->value[0]);
+				}
+			}
+			else{
+				printf("Job %d is finished, moving on...\n", next_job->value[0]);	
+			}
+		}
+
+		if(found){
+			// If there is an idle core, update it with the next job
+			
+			int idle = get_idle_core();
+			
+			if(9000 != idle){
+				printf("Updating core %d, currently running: %d\n", idle, active_core[idle]);
+				update_core(get_idle_core(), next_job);
+				printf("Core %d is now running job %d\n", idle, active_core[idle]);
+				
+				// Update last active time to next time cycle
+				next_job->value[6] = time;
+
+				// Update latency if not already set
+				if(next_job->value[7] < 0){
+					// Need to subtract one due to the way
+					// time is handled in the simulator (a
+					// job is never executed when it
+					// arrives, it always waits at least
+					// until the next time unit
+					next_job->value[7] = (time - next_job->value[1]);	
+				}
+			}
+			else{
+				printf("No idle cores found, get_idle returned %d\n", idle);	
+			}
+
+			// Update return with job number
+			result = next_job->value[0];
+		}
+		else{
+			printf("No valid jobs found to schedule\n");
+		}
+	}
+	return result;
 }
 
 int next_job_PSJF(job_t *new_job, int time){
@@ -294,7 +395,76 @@ int next_job_PSJF(job_t *new_job, int time){
 }
 
 int next_job_PRI(job_t *new_job, int time){
-	return -1;
+	job_t* next_job = NULL;
+	int length = priqueue_size(ready_q);
+	int found = 0;
+	int result = -1;
+	if(length > 0){
+	
+		// If not empty, search through the queue
+		// Everything should be sorted by arrival automatically by
+		// priqueue_offer
+		printf("Finding next job for PRI...\n");
+
+		for(int i = 0; i<length; ++i){
+			next_job = (job_t*)priqueue_at(ready_q, i);
+			
+			// If the current job is not finished..
+			if(next_job->finished != 1){
+		
+				printf("Job %d is not finished(%d)...\n", next_job->value[0], next_job->finished);
+				
+				// and it is not already running...
+				if(-1 <= next_job->core){
+				
+					printf("and not running, it will be the next job...\n");
+					found = 1;
+					break;
+				}
+				else{
+					printf("Job %d is running, moving on...\n", next_job->value[0]);
+				}
+			}
+			else{
+				printf("Job %d is finished, moving on...\n", next_job->value[0]);	
+			}
+		}
+
+		if(found){
+			// If there is an idle core, update it with the next job
+			
+			int idle = get_idle_core();
+			
+			if(9000 != idle){
+				printf("Updating core %d, currently running: %d\n", idle, active_core[idle]);
+				update_core(get_idle_core(), next_job);
+				printf("Core %d is now running job %d\n", idle, active_core[idle]);
+				
+				// Update last active time to next time cycle
+				next_job->value[6] = time;
+
+				// Update latency if not already set
+				if(next_job->value[7] < 0){
+					// Need to subtract one due to the way
+					// time is handled in the simulator (a
+					// job is never executed when it
+					// arrives, it always waits at least
+					// until the next time unit
+					next_job->value[7] = (time - next_job->value[1]);	
+				}
+			}
+			else{
+				printf("No idle cores found, get_idle returned %d\n", idle);	
+			}
+
+			// Update return with job number
+			result = next_job->value[0];
+		}
+		else{
+			printf("No valid jobs found to schedule\n");
+		}
+	}
+	return result;
 }
 
 int next_job_PPRI(job_t *new_job, int time){
@@ -447,9 +617,12 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
 			; // Do nothing
 
 			int *rr_job_number = (int*)malloc(sizeof(int));
-			*rr_job_number = job_number;
 			
-			// New jobs always at back in this queue
+			job_t* last;
+			last = (job_t*)priqueue_at(ready_q, priqueue_size(ready_q)-1);
+
+			// One more than the last ensures FIFO order
+			*rr_job_number = last->value[1] + 1;
 			priqueue_offer(rr_q, rr_job_number);
 
 			// Schedule all jobs
@@ -605,6 +778,7 @@ float scheduler_average_waiting_time()
 	for(int i = 0; i<priqueue_size(ready_q); ++i){
 		current_job = (job_t *)priqueue_at(ready_q, i);
 
+		printf("Job %d waited %d time units\n", current_job->value[0], current_job->value[5]-current_job->value[1] - current_job->value[4]);
 		// waiting time is total time less running time
 		sum += (current_job->value[5] - current_job->value[1] - current_job->value[4]);
 	}
@@ -626,15 +800,13 @@ float scheduler_average_waiting_time()
  */
 float scheduler_average_turnaround_time()
 {
-	int time;
+	int time = 0;
 	job_t *current_job;
 	for(int i = 0; i<priqueue_size(ready_q); ++i){
 		current_job = (job_t*)priqueue_at(ready_q, i);
-		// Add in total time (end-start-1)
-		// Need to subtract 1 because nothing actually runs when it
-		// arrives according to the rubric (it arrives, gets
-		// scheduled, and then runs the next time unit)
-		time += (current_job->value[5] - current_job->value[1]) -1 ;
+		// Add in total time (end-start)
+		printf("Job %d took a total of %d time units\n", current_job->value[0], current_job->value[5]-current_job->value[1]);
+		time += (current_job->value[5] - current_job->value[1]);
 	}
 	return (1.0 * time)/priqueue_size(ready_q);
 }
@@ -652,14 +824,14 @@ float scheduler_average_turnaround_time()
  */
 float scheduler_average_response_time()
 {
-	int time;
+	int time = 0;
 	job_t *current_job;
 	for(int i = 0; i<priqueue_size(ready_q); ++i){
 		current_job = (job_t*)priqueue_at(ready_q, i);
+		printf("Job %d had latency of %d time units\n", current_job->value[0], current_job->value[7]);
 		time += current_job->value[7];
 	}
 	return (1.0 * time)/priqueue_size(ready_q);
-	return 0.0;
 }
 
 
