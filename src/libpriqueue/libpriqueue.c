@@ -87,7 +87,7 @@ int priqueue_offer(priqueue_t *q, void *ptr)
 		// Two compares in use: 
 		// 	c1(a,b) -> a-b (lowest takes priority)
 		// 	c2(a,b) -> b-a (highest takes priority)
-		while(NULL != temp && 0 <= q->compare(ptr, temp->value)){
+		while(NULL != temp && 0 >= q->compare(temp->value, ptr)){
 			// proceed until we reach something that has lower
 			// priority or the end
 			if(DEBUG){
