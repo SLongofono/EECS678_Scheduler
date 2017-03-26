@@ -61,6 +61,32 @@ void update_run_time(job_t *job, int time){
 
 
 /**
+ * @brief fetches the currently running job to be preempted by the job passed in, or NULL if none exist
+ */
+job_t* get_preempt_job(job_t *current_job){
+
+	// To accurately judge which needs to be preempted, we need to look
+	// from the back of the list forward
+	job_t *running_job;
+
+	for(int i = priqueue_size(ready_q)-1; i>=0; --i){
+		
+		running_job = (job_t*)priqueue_at(ready_q, i);
+
+		// If the job is running
+		if(0 <= running_job->core){
+			//and the job passed in trumps it
+			if(0 >= ready_q->compare(current_job, running_job)){
+				return running_job;
+			}
+		}
+	}
+
+	return NULL;
+}
+
+
+/**
  * @brief Returns the integer corresponding to the lowest free core
  * @return The lowest non-negative integer which corresponds to a free core,
  * or -1 if no cores are free.
@@ -372,7 +398,7 @@ void next_job_preempt(job_t *new_job, int time){
 	
 	job_t *next_job;
 	
-	// Clear all cores and update jobs
+#if 0	// Clear all cores and update jobs
 	for(int j = 0; j<NUM_CORES; ++j){
 		printf("Updating core %d, job %d...\n", j, active_core[j]);
 		next_job = get_job(active_core[j]);
@@ -403,17 +429,76 @@ void next_job_preempt(job_t *new_job, int time){
 			printf("No job on core %d...\n", j);
 		}
 	}
-
+#endif
 
 	next_job = NULL;
 	int length = priqueue_size(ready_q);
 	int found = 0;
 	if(length > 0){
 	
+		for(int i = 0; i<length; ++i){
+			next_job = (job_t *)priqueue_at(ready_q, i);
+
+			// If the current job is not finished..
+			if(next_job->finished != 1){
+		
+				printf("Job %d is not finished...\n", next_job->value[0]);
+			
+				// and it is not already running...
+
+				if(0 > next_job->core){
+					printf("and not running, checking for free cores...\n");
+
+					// If an idle core exists, assign this
+					// job to that core
+					int idle = get_idle_core();
+
+					if(9000 != idle){
+						printf("An idle core exists to be scheduled...\n");	
+						printf("Updating core %d, currently running: %d\n", idle, active_core[idle]);
+						update_core(idle, next_job);
+						printf("Core %d is now running job %d\n", idle, active_core[idle]);
+					}
+					else{
+						// Otherwise, check if any of the jobs
+						// existing jobs should be preempted
+	
+						printf("No idle cores available, checking for preemption...\n");
+
+						// To preserve priority, find
+						// the least important task
+
+						job_t *old_job = get_preempt_job(next_job);
+						if(NULL != old_job){
+							// Preempt the job
+							int core = old_job->core;
+							old_job->core = -1;
+							printf("Job %d will preempt job %d on core %d...\n", next_job->value[0], old_job->value[0], core);
+								
+							//Update time
+
+							// Update core with
+							// this job
+							printf("Updating core %d, currently running: %d\n", core, active_core[core]);
+							update_core(core, next_job);
+							printf("Core %d is now running job %d\n", core, active_core[core]);
+						}
+						else{
+							printf("No preemptable jobs found...\n");	
+						}
+					}// End else
+				}// End if (0 < next_job->core)
+			}
+			else{
+				printf("Job %d is finished, moving on...\n", next_job->value[0]);	
+			}
+
+		}
+	
+	#if 0
 		// If not empty, search through the queue
 		// Everything should be sorted by arrival automatically by
 		// priqueue_offer
-		printf("Finding next job for PSJF...\n");
 		
 		int idle = get_idle_core();
 		
@@ -426,9 +511,16 @@ void next_job_preempt(job_t *new_job, int time){
 				// If the current job is not finished..
 				if(next_job->finished != 1){
 		
-					printf("Job %d is not finished, it will be the next job...\n", next_job->value[0]);
+					printf("Job %d is not finished...\n", next_job->value[0]);
+
+					// and we have not already assigned it
+					// to a core...
+					if(0 > next_job->core){
+						
+						printf("and has not been assigned, job %d will be the next job\n", next_job->value[0]);
 						found = 1;
 						break;
+					}
 				}
 				else{
 					printf("Job %d is finished, moving on...\n", next_job->value[0]);	
@@ -439,7 +531,7 @@ void next_job_preempt(job_t *new_job, int time){
 				
 				// Update the idle core with the next job		
 				printf("Updating core %d, currently running: %d\n", idle, active_core[idle]);
-				update_core(get_idle_core(), next_job);
+				update_core(idle, next_job);
 				printf("Core %d is now running job %d\n", idle, active_core[idle]);
 				
 				
@@ -469,6 +561,7 @@ void next_job_preempt(job_t *new_job, int time){
 				break;
 			}
 		}// End while
+#endif
 	} // End if(length > 0)
 }
 
@@ -604,7 +697,7 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
 
 	switch(policy){
 		case RR:
-			// Need an empty statement to avoid a gotcha, labels
+			// Need an empty statement to avoid a gotcha: labels
 			// must be followed by statements, but declarations do
 			// not count as statements. Look up error message:
 			// "error: a label can only be part of a statement and
@@ -868,8 +961,9 @@ void scheduler_clean_up()
  */
 void scheduler_show_queue(priqueue_t* q)
 {
+	printf("\n");
 	for(int i=0; i<priqueue_size(ready_q); ++i){
 		job_t *daJob = (job_t*)priqueue_at(ready_q, i);
-		printf("\n\tJob %d:\tArrived:\t%d\tBurst:\t%d\tPriority:\t%d\tCore:\t%d\tRuntime:\t%d\n", daJob->value[0], daJob->value[1], daJob->value[2], daJob->value[3], daJob->core, daJob->value[4]);
+		printf("\tJob %d:\tArrived:\t%d\tBurst:\t%d\tPriority:\t%d\tCore:\t%d\tRunning:\t%d\tComplete:\t%d\n", daJob->value[0], daJob->value[1], daJob->value[2], daJob->value[3], daJob->core, (daJob->core>=0)?1:0, daJob->finished);
 	}
 }

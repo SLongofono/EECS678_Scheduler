@@ -26,13 +26,21 @@ void print_usage(char *program_name)
 	fprintf(stderr, "Acceptable schemes are: fcfs, sjf, psjf, pri, ppri, rr#\n");
 }
 
+
+// The award for the worst function name ever goes to...
+// This method assigns a core ID to a job, which marks it as "active" in the
+// simulator.  All active jobs have non-negative job_id's.
 int set_active_job(int job_id, int core_id, simulator_job_list_t *jobs, int active_jobs)
 {
 	int i;
+	// For all known jobs
 	for (i = 0; i < active_jobs; i++)
 	{
+		// If the job's id matches the one passed in...
+		// and the job.arrived is non-zero (it has arrived)
 		if (jobs[i].job_id == job_id && jobs[i].arrived)
 		{
+			// Set the job's core id to the one passed in
 			jobs[i].core_id = core_id;
 			return 1;
 		}
@@ -41,6 +49,8 @@ int set_active_job(int job_id, int core_id, simulator_job_list_t *jobs, int acti
 	return 0;
 }
 
+// Run through all known jobs, find the ones that have arrived, and print the
+// job id.
 void print_available_jobs(simulator_job_list_t *jobs, int active_jobs)
 {
 	printf("Active jobs are: ");
@@ -226,16 +236,22 @@ int main(int argc, char **argv)
 	else if (scheme == RR) { printf("Round Robin (RR) with a quantum of %d", quantum); }
 	printf(" scheduling...\n\n");
 
+
+	// Initialize scheduler
 	scheduler_start_up(cores, scheme);
 
 
 	int time = 0, i, j;
 	int active_jobs = job_id, jobs_alive = 0;
 
+	// Track the remaining quantum time for each core
 	int *quantum_clock = malloc(cores * sizeof(int));
+
+	// What does this do
 	char **core_timing_diagram = malloc(cores * sizeof(char *));
 	int core_timing_diagram_size = 1024;
 
+	// Initialize above types
 	for (i = 0; i < cores; i++)
 	{
 		quantum_clock[i] = -1;
@@ -243,6 +259,8 @@ int main(int argc, char **argv)
 		core_timing_diagram[i][0] = '\0';
 	}
 
+
+	// Main loop
 	while (active_jobs > 0)
 	{
 		printf("=== [TIME %d] ===\n", time);
@@ -257,19 +275,43 @@ int main(int argc, char **argv)
 				// Notify the scheduler has finished
 				int job_id = jobs[i].job_id;
 				int core_id = jobs[i].core_id;
+
+				// This call merits a comment, since the
+				// method names make discerning the behavior
+				// difficult.  It relies on specialized
+				// behavior and makes no mention of it, which
+				// makes for unreadable code and wastes
+				// developers' time.
+				//
+				// scheduler_job_finished will prompt the
+				// scheduler to destroy the given job, and
+				// return the ID of the next known job (on the
+				// scheduler side) which should be scheduled
+				// on THIS core.  If -1 is returned, then the
+				// core is deemed idle.
 				int new_job_id = scheduler_job_finished(jobs[i].core_id, jobs[i].job_id, time);
 
+				// Reset quantum time
 				if (scheme == RR)
 					quantum_clock[jobs[i].core_id] = quantum;
 
 				// Delete the finished jobs, decrease the number of active jobs
 				if (i != active_jobs - 1)
+					// Whomever wrtoe this should be
+					// fired.  Modifying a list in place
+					// is tricky, doing so without
+					// comments is stupid.
 					memcpy(&jobs[i], &jobs[active_jobs - 1], sizeof(simulator_job_list_t));
 				active_jobs--;
 				jobs_alive--;
+
+				// Since we deleted this job, repeat this
+				// value of i to account for the smaller size
 				i--;
 
-				// Set the new job
+				// If the core is not idle, but the returned
+				// id doesn't match the local records, throw
+				// an error.
 				if ( new_job_id != -1 && !set_active_job(new_job_id, core_id, jobs, active_jobs) )
 				{
 					printf("The scheduler_job_finished() selected an invalid job (job_id == %d).\n", new_job_id);
@@ -278,6 +320,7 @@ int main(int argc, char **argv)
 				}
 				else
 				{
+					// All is well, proceed
 					printf("Job %d, running on core %d, finished. Core %d is now running job %d.\n", job_id, core_id, core_id, new_job_id);
 					printf("  Queue: "); scheduler_show_queue(); printf("\n\n");
 				}
@@ -286,6 +329,7 @@ int main(int argc, char **argv)
 
 		/*
 		 * Check to see if we finished our last job.  (If we don't check here, we would run an extra time unit that will be totally idle.)
+		 *
 		 */
 		if (active_jobs == 0)
 			break;
@@ -306,13 +350,20 @@ int main(int argc, char **argv)
 							// Notify the scheduler the quantum has expired
 							int core_id = jobs[j].core_id;
 							int old_job_id = jobs[j].job_id;
+
+							// It's as if this person wants to piss off everyone who has to maintain their code.
+							// Returns -1 if the core shoudl remain idle, otherwise the job id of the next
+							// job for this core.
 							int new_job_id = scheduler_quantum_expired(jobs[j].core_id, time);
 
+							// Set this job as "Inactive"
 							jobs[j].core_id = -1;
 
+							// Reset quantum
 							quantum_clock[core_id] = quantum;
 
-							// Set the new job
+							// If the core is not idle, but the job given is not assigned to the
+							// core, throw an error
 							if ( new_job_id != -1 && !set_active_job(new_job_id, core_id, jobs, active_jobs) )
 							{
 								printf("The scheduler_quantum_expired() selected an invalid job (job_id == %d).\n", new_job_id);
@@ -321,6 +372,7 @@ int main(int argc, char **argv)
 							}
 							else
 							{
+								// All is well, proceed
 								printf("Job %d, running on core %d, had its quantum expire. Core %d is now running job %d.\n", old_job_id, core_id, core_id, new_job_id);
 								printf("  Queue: "); scheduler_show_queue(); printf("\n\n");
 							}
@@ -396,6 +448,8 @@ int main(int argc, char **argv)
 
 				assert(time_string[jobs[i].core_id][0] == '\0');
 
+
+				// REALLY?!?  MAGIC NUMBERS?!?  Fire this person.
 				if (jobs[i].job_id < 10)
 					sprintf(time_string[jobs[i].core_id], "%d", jobs[i].job_id);
 				else if (jobs[i].job_id < 10 + 26)
