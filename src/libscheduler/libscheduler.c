@@ -28,8 +28,8 @@ scheme_t policy;
 typedef struct _job_t
 {
 	// Contains in order: uuid, arrival, burst, priority, runtime, end,
-	// last active time, latency
-	int value[8];
+	// last active time, latency, wait time
+	int value[9];
 
 	// Negative if unassigned, otherwise the integer corresponding to the
 	// core in active_core
@@ -50,6 +50,15 @@ typedef struct rr_job_t{
 /**
  * Helper Functions
  */
+void update_wait_time(job_t * job, int time){
+	// Determine total time
+	// subtract running time
+}
+
+void update_run_time(job_t *job, int time){
+	// Determine total time
+	// subtract waiting time
+}
 
 
 /**
@@ -62,7 +71,7 @@ int get_idle_core(){
 	int lowest = 9000;
 	for(int i = 0; i<NUM_CORES; ++i){
 		if(0 > active_core[i] && i < lowest){
-				lowest = i;	
+			lowest = i;	
 		}	
 	}
 	return lowest;
@@ -103,6 +112,8 @@ void update_core(int core, job_t * job){
 	
 	// Update job
 	job->core = core;
+
+	printf("Job %d core set to %d\n", job->value[0], core);
 
 	// Update cores and return success
 	active_core[core] = job->value[0];
@@ -296,11 +307,10 @@ int comparison_PSJF(const void *j1, const void *j2){
  * Everything must be ready to go, in case these are called from
  * scheduler_new_job().
  */
-int next_job_FCFS(job_t* new_job, int time){
+void next_job_FCFS(job_t* new_job, int time){
 	job_t* next_job = NULL;
 	int length = priqueue_size(ready_q);
 	int found = 0;
-	int result = -1;
 	if(length > 0){
 	
 		// If not empty, search through the queue
@@ -317,7 +327,7 @@ int next_job_FCFS(job_t* new_job, int time){
 				printf("Job %d is not finished(%d)...\n", next_job->value[0], next_job->finished);
 				
 				// and it is not already running...
-				if(-1 <= next_job->core){
+				if(0 >  next_job->core){
 				
 					printf("and not running, it will be the next job...\n");
 					found = 1;
@@ -353,86 +363,82 @@ int next_job_FCFS(job_t* new_job, int time){
 			else{
 				printf("No idle cores found, get_idle returned %d\n", idle);	
 			}
-
-			// Update return with job number
-			result = next_job->value[0];
 		}
 		else{
 			printf("No valid jobs found to schedule\n");
 		}
 	}
-	return result;
 }
 
-int next_job_SJF(job_t *new_job, int time){
+void next_job_SJF(job_t *new_job, int time){
 	job_t* next_job = NULL;
 	int length = priqueue_size(ready_q);
-	int found = 0;
-	int result = -1;
-	if(length > 0){
+	int found;
+	if(0 < length){
 	
 		// If not empty, search through the queue
 		// Everything should be sorted by arrival automatically by
 		// priqueue_offer
 		printf("Finding next job for SJF...\n");
-
-		for(int i = 0; i<length; ++i){
-			next_job = (job_t*)priqueue_at(ready_q, i);
-			
-			// If the current job is not finished..
-			if(next_job->finished != 1){
 		
-				printf("Job %d is not finished(%d)...\n", next_job->value[0], next_job->finished);
+		int idle = get_idle_core();
+
+		while(9000 != idle){
+			found = 0;
+			for(int i = 0; i<length; ++i){
+				next_job = (job_t*)priqueue_at(ready_q, i);
+			
+				// If the current job is not finished..
+				if(next_job->finished != 1){
+		
+					printf("Job %d is not finished(%d)...\n", next_job->value[0], next_job->finished);
 				
-				// and it is not already running...
-				if(-1 <= next_job->core){
+					// and it is not already running...
+					if(0 > next_job->core){
 				
-					printf("and not running, it will be the next job...\n");
-					found = 1;
-					break;
+						printf("and not running, it will be the next job...\n");
+						found = 1;
+						break;
+					}
+					else{
+						printf("Job %d is running, moving on...\n", next_job->value[0]);
+					}
 				}
 				else{
-					printf("Job %d is running, moving on...\n", next_job->value[0]);
+					printf("Job %d is finished, moving on...\n", next_job->value[0]);	
 				}
 			}
-			else{
-				printf("Job %d is finished, moving on...\n", next_job->value[0]);	
-			}
-		}
 
-		if(found){
-			// If there is an idle core, update it with the next job
-			
-			int idle = get_idle_core();
-			
-			if(9000 != idle){
+			if(found){
 				printf("Updating core %d, currently running: %d\n", idle, active_core[idle]);
-				update_core(get_idle_core(), next_job);
+				update_core(idle, next_job);
 				printf("Core %d is now running job %d\n", idle, active_core[idle]);
 				
 				// Update last active time to next time cycle
 				next_job->value[6] = time;
 
 				// Update latency if not already set
-				if(next_job->value[7] < 0){
+				// Needs to be done this way since there could
+				// be multiple schedulings between each time
+				// unit
+				if(next_job->value[4] == 1 && next_job->value[6] < 0){
+					// This job just ran 1 unit of time,
+					// update its latency to the previous
+					// time unit if it has not already
+					// been set
 					next_job->value[7] = (time - next_job->value[1]);	
 				}
+				idle = get_idle_core();
 			}
 			else{
-				printf("No idle cores found, get_idle returned %d\n", idle);	
+				printf("No valid jobs found to schedule\n");
+				break;
 			}
-
-			// Update return with job number
-			result = next_job->value[0];
-		}
-		else{
-			printf("No valid jobs found to schedule\n");
-		}
-	}
-	return result;
+		}// End while
+	}// End if(0 < length)
 }
 
-int next_job_PSJF(job_t *new_job, int time){
+void next_job_PSJF(job_t *new_job, int time){
 	// Any preempted jobs should have their run time updated as they are
 	// pulled off
 	
@@ -474,7 +480,6 @@ int next_job_PSJF(job_t *new_job, int time){
 	next_job = NULL;
 	int length = priqueue_size(ready_q);
 	int found = 0;
-	int result = -1;
 	if(length > 0){
 	
 		// If not empty, search through the queue
@@ -486,7 +491,7 @@ int next_job_PSJF(job_t *new_job, int time){
 		
 		// While there are cores left to be scheduled
 		while(9000 != idle){
-
+			found = 0;
 			for(int i = 0; i<length; ++i){
 				next_job = (job_t*)priqueue_at(ready_q, i);
 			
@@ -530,9 +535,6 @@ int next_job_PSJF(job_t *new_job, int time){
 				
 				// Get next core to be scheduled
 				idle = get_idle_core();
-							
-				// Update return with job number
-				result = next_job->value[0];
 			}
 			else{
 				printf("No valid jobs found to schedule\n");
@@ -540,53 +542,50 @@ int next_job_PSJF(job_t *new_job, int time){
 			}
 		}// End while
 	} // End if(length > 0)
-	return result;
 }
 
-int next_job_PRI(job_t *new_job, int time){
+void next_job_PRI(job_t *new_job, int time){
 	job_t* next_job = NULL;
 	int length = priqueue_size(ready_q);
-	int found = 0;
-	int result = -1;
-	if(length > 0){
+	int found;
+	if(0 < length){
 	
 		// If not empty, search through the queue
 		// Everything should be sorted by arrival automatically by
 		// priqueue_offer
 		printf("Finding next job for PRI...\n");
-
-		for(int i = 0; i<length; ++i){
-			next_job = (job_t*)priqueue_at(ready_q, i);
-			
-			// If the current job is not finished..
-			if(next_job->finished != 1){
 		
-				printf("Job %d is not finished(%d)...\n", next_job->value[0], next_job->finished);
+		int idle = get_idle_core();
+
+		while(9000 != idle){
+			found = 0;
+			for(int i = 0; i<length; ++i){
+				next_job = (job_t*)priqueue_at(ready_q, i);
+			
+				// If the current job is not finished..
+				if(next_job->finished != 1){
+		
+					printf("Job %d is not finished(%d)...\n", next_job->value[0], next_job->finished);
 				
-				// and it is not already running...
-				if(-1 <= next_job->core){
+					// and it is not already running...
+					if(0 > next_job->core){
 				
-					printf("and not running, it will be the next job...\n");
-					found = 1;
-					break;
+						printf("and not running, it will be the next job...\n");
+						found = 1;
+						break;
+					}
+					else{
+						printf("Job %d is running, moving on...\n", next_job->value[0]);
+					}
 				}
 				else{
-					printf("Job %d is running, moving on...\n", next_job->value[0]);
+					printf("Job %d is finished, moving on...\n", next_job->value[0]);	
 				}
 			}
-			else{
-				printf("Job %d is finished, moving on...\n", next_job->value[0]);	
-			}
-		}
 
-		if(found){
-			// If there is an idle core, update it with the next job
-			
-			int idle = get_idle_core();
-			
-			if(9000 != idle){
+			if(found){
 				printf("Updating core %d, currently running: %d\n", idle, active_core[idle]);
-				update_core(get_idle_core(), next_job);
+				update_core(idle, next_job);
 				printf("Core %d is now running job %d\n", idle, active_core[idle]);
 				
 				// Update last active time to next time cycle
@@ -603,22 +602,17 @@ int next_job_PRI(job_t *new_job, int time){
 					// been set
 					next_job->value[7] = (time - next_job->value[1]);	
 				}
+				idle = get_idle_core();
 			}
 			else{
-				printf("No idle cores found, get_idle returned %d\n", idle);	
+				printf("No valid jobs found to schedule\n");
+				break;
 			}
-
-			// Update return with job number
-			result = next_job->value[0];
-		}
-		else{
-			printf("No valid jobs found to schedule\n");
-		}
-	}
-	return result;
+		}// End while
+	}// End if(0 < length)
 }
 
-int next_job_PPRI(job_t *new_job, int time){
+void next_job_PPRI(job_t *new_job, int time){
 	
 	job_t *next_job;
 	
@@ -658,7 +652,6 @@ int next_job_PPRI(job_t *new_job, int time){
 	next_job = NULL;
 	int length = priqueue_size(ready_q);
 	int found = 0;
-	int result = -1;
 	if(length > 0){
 	
 		// If not empty, search through the queue
@@ -714,9 +707,6 @@ int next_job_PPRI(job_t *new_job, int time){
 				
 				// Get next core to be scheduled
 				idle = get_idle_core();
-							
-				// Update return with job number
-				result = next_job->value[0];
 			}
 			else{
 				printf("No valid jobs found to schedule\n");
@@ -724,11 +714,9 @@ int next_job_PPRI(job_t *new_job, int time){
 			}
 		}// End while
 	} // End if(length > 0)
-
-	return result;
 }
 
-int next_job_RR(job_t *new_job, int time){
+void next_job_RR(job_t *new_job, int time){
 	// Identify the next job to be run
 	
 	// Update the current job's entry in the rr queue to have one more
@@ -737,8 +725,7 @@ int next_job_RR(job_t *new_job, int time){
 	// Find the core to run it on
 	
 	// Update the run time for the preempted job
-	
-	return -1;
+
 }
 
 
@@ -840,6 +827,7 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
 	daJob->value[5] = 0;			// End time
 	daJob->value[6] = -1;			// Last active time
 	daJob->value[7] = -1;			// Scheduling latency
+	daJob->value[8] = -1;			// Cumulative waiting time
 	daJob->core	= -1;			// Active core
 	daJob->finished = 0;			// Complete/Incomplete
 
@@ -1027,7 +1015,9 @@ int scheduler_quantum_expired(int core_id, int time)
 	}
 
 	// Call to scheduled and return the job number of the next job to run
-	return next_job_RR(NULL, time);
+	next_job_RR(NULL, time);
+
+	return active_core[core_id];
 }
 
 
