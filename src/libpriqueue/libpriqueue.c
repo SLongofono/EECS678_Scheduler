@@ -228,29 +228,45 @@ void *priqueue_poll(priqueue_t *q)
 void *priqueue_at(priqueue_t *q, int index)
 {
 	if(index > q->size){
+		printf("INVALID SIZE\n");
 		return NULL;
 	}
 	else{
+		printf("Finding index %d...\n", index);
 		// Locate the element
-		int count =0;
+		int count = 0;
 		node_t * temp = q->front;
-		//node_t * prev = NULL;
+
+		if(NULL == temp){
+			printf("WTF\n");	
+		}
+
 		while(count < index){
-			//prev = temp;
-			temp = temp->next;
+
+			if(NULL != temp){
+				temp = temp->next;
+			}
+			else{
+				printf("Element %d is NULL!\n", count);	
+				break;
+			}
 			count++;
 		}
+		
+		printf("Done searching\n");
 
-		if(DEBUG){
-			printf("Found element %d at position %d\n", *(int*)temp->value, count);
+		if(NULL != temp){
+
+			if(DEBUG){
+				printf("Found element %d at position %d\n", *(int*)temp->value, count);
+			}
+			printf("Temp is NOT NULL\n");
+			return temp->value;
 		}
-
-		// Remove and clean up
-		//prev->next = temp->next;
-		//q->size--;
-
-		// Return result
-		return temp->value;
+		else{
+			printf("Couldn't find index %d...\n", index);
+			return NULL;
+		}
 	}
 }
 
@@ -335,20 +351,27 @@ void *priqueue_remove_at(priqueue_t *q, int index)
 		return NULL;	
 	}
 	int count = 0;
-	void * ret;
-	node_t* temp = q->front;
+	void *ret = NULL;
+	node_t *temp = q->front;
 	node_t * prev = NULL;
 	while(count != index){
 		prev = temp;
 		temp = temp->next;
 		count++;
 	}
-	assert(temp != NULL);
-	prev->next = temp->next;
-	ret = temp->value;
-	free(temp);
-	q->size--;
+	if(temp != NULL){
+		if(prev != NULL){
+			prev->next = temp->next;
+		}
+		else{
+			q->front = temp->next;	
+		}
+		ret = (void *)temp->value;
+		free(temp);
+		q->size--;
+	}
 	return ret;
+
 }
 
 
