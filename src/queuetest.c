@@ -103,6 +103,22 @@ int main()
 		printf("%d ", *((int *)priqueue_at(&q, i)) );
 	printf("\n");
 
+	int * temp;
+
+	temp = (int *)priqueue_remove_at(&q, 1);
+
+	printf("Removed element %d from position %d\n", *temp, 1);
+
+	temp = (int*)priqueue_remove_at(&q, priqueue_size(&q)-1);
+
+	printf("Removed element %d from position %d\n", *temp, priqueue_size(&q));
+
+	printf("Elements in order queue (expected 1 1 1 1 5 9 9 9 9): ");
+	for (i = 0; i < priqueue_size(&q); i++)
+		printf("%d ", *((int *)priqueue_at(&q, i)) );
+	printf("\n");
+
+
 	printf("The middle element is: %d\n", *(int*)priqueue_at(&q, 5));
 
 	printf("Elements in second queue (expected none): ");

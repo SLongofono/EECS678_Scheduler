@@ -885,6 +885,12 @@ int scheduler_quantum_expired(int core_id, int time)
 
 	printf("Job %d removed, current size is %d, updating metrics...\n", current_job->value[0], priqueue_size(ready_q));
 
+	if(current_job->value[0] != active_core[core_id]){
+		printf("Sanity check failed in quantum expired...\n");
+		printf("The job removed %d does not match the expected job %d\n", current_job->value[0], active_core[core_id]);
+		assert(0);
+	}
+
 	active_core[core_id] = -1;
 
 	// update its time
@@ -905,6 +911,14 @@ int scheduler_quantum_expired(int core_id, int time)
 	printf("Adding old job to back of queue...\n");
 	// Add the old job to the back of the queue
 	priqueue_offer(ready_q, current_job);
+
+	printf("Checking that the job is in fact in the queue...\n");
+	int sanity_check = current_job->value[0];
+
+	current_job = get_job(sanity_check);
+
+	printf("The job is in the queue\n");
+	
 
 	printf("Scheduling next job...\n");
 	// Call to schedule the next job to run
@@ -1040,8 +1054,5 @@ void scheduler_show_queue(priqueue_t* q)
 		job_t *daJob = (job_t*)priqueue_at(ready_q, i);
 		printf("\tJob %d:\tArrived:\t%d\tBurst:\t\t%d\tPriority:\t%d\tCore:\t%d\tRunning:\t%d\tComplete:\t%d\n", daJob->value[0], daJob->value[1], daJob->value[2], daJob->value[3], daJob->core, (daJob->core>=0)?1:0, daJob->finished);
 		printf("\t       \tLast active:\t%d\tRuntime:\t%d\n", daJob->value[6], daJob->value[4]);
-		if(policy == RR){
-			printf("\t\tRR order\t: %d\n", daJob->RR_order);
-		}
 	}
 }

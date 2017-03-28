@@ -227,47 +227,33 @@ void *priqueue_poll(priqueue_t *q)
  */
 void *priqueue_at(priqueue_t *q, int index)
 {
+
+	// Check size
 	if(index > q->size){
 		printf("INVALID SIZE\n");
-		return NULL;
 	}
 	else{
-		printf("Finding index %d...\n", index);
+		
 		// Locate the element
 		int count = 0;
 		node_t * temp = q->front;
 
-		if(NULL == temp){
-			printf("WTF\n");	
-		}
-
-		while(count < index){
-
-			if(NULL != temp){
-				temp = temp->next;
-			}
-			else{
-				printf("Element %d is NULL!\n", count);	
-				break;
-			}
+		while(count < index && NULL != temp ){
+			temp = temp->next;
 			count++;
 		}
-		
-		printf("Done searching\n");
 
 		if(NULL != temp){
 
 			if(DEBUG){
 				printf("Found element %d at position %d\n", *(int*)temp->value, count);
 			}
-			printf("Temp is NOT NULL\n");
-			return temp->value;
-		}
-		else{
-			printf("Couldn't find index %d...\n", index);
-			return NULL;
+
+			return (void *)temp->value;
 		}
 	}
+
+	return NULL;
 }
 
 
