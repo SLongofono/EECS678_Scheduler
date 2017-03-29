@@ -271,7 +271,6 @@ void *priqueue_at(priqueue_t *q, int index)
  */
 int priqueue_remove(priqueue_t *q, void *ptr)
 {
-	print_q(q);
 	node_t* temp = q->front;
 	node_t* prev = NULL;
 	int removed = 0;
@@ -321,7 +320,6 @@ int priqueue_remove(priqueue_t *q, void *ptr)
 			temp = temp->next;
 		}
 	}
-	print_q(q);
 	return removed;
 }
 

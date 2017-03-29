@@ -53,14 +53,14 @@ void update_running_time(job_t * job, int time){
 	
 	// If this job has already been active...
 	if(0 <= job->value[6]){
-		printf("Computing new run time as %d - %d...\n", time, job->value[6]);
+	//	printf("Computing new run time as %d - %d...\n", time, job->value[6]);
 		new_running_time = time - job->value[6];
 	}
 	
 	// Update last active time
 	job->value[6] = time;
-	printf("Job %d running time incremented from  %d to %d\n", job->value[0], job->value[4], job->value[4]+new_running_time);
-	printf("Job %d last active time updated to %d\n", job->value[0], job->value[6]);
+	// printf("Job %d running time incremented from  %d to %d\n", job->value[0], job->value[4], job->value[4]+new_running_time);
+	// printf("Job %d last active time updated to %d\n", job->value[0], job->value[6]);
 
 	
 	job->value[4] += new_running_time;
@@ -71,7 +71,7 @@ void update_latency_time(job_t* job, int time){
 	// If we haven't already set it...
 	if(0 > job->value[7]){
 		job->value[7] = time - job->value[1];
-		printf("Job %d latency updated to %d\n", job->value[0], job->value[7]);
+		// printf("Job %d latency updated to %d\n", job->value[0], job->value[7]);
 	}
 }
 
@@ -93,7 +93,7 @@ void update_time(int time){
 			update_running_time(curr_job, time);
 			
 		}
-		printf("Time updated, job %d\n", curr_job->value[0]);
+		// printf("Time updated, job %d\n", curr_job->value[0]);
 	}
 }
 
@@ -146,18 +146,18 @@ int get_idle_core(){
  * 	  if no such job exists.
  */
 job_t * get_job(int job_number){
-	printf("In get job, looking for %d...\n", job_number);
+	// printf("In get job, looking for %d...\n", job_number);
 	job_t* result = NULL;
 	job_t *current_job;
 	for(int i = 0; i<priqueue_size(ready_q); ++i){
 		current_job = (job_t*)priqueue_at(ready_q, i);
 		if(job_number == current_job->value[0]){
 			result = current_job;
-			printf("Found job %d!\n", current_job->value[0]);
+			// printf("Found job %d!\n", current_job->value[0]);
 			break;
 		}
 		else{
-			printf("Job %d does not match %d\n", current_job->value[0], job_number);	
+			// printf("Job %d does not match %d\n", current_job->value[0], job_number);	
 		}
 	}
 	return result;
@@ -172,7 +172,7 @@ job_t * get_job(int job_number){
 
 void update_core(int core, job_t * job){
 
-	printf("Updating core %d with job %d...\n", core, job->value[0]);
+	// printf("Updating core %d with job %d...\n", core, job->value[0]);
 	if(core > NUM_CORES){
 		printf("[ Error ]\t\tTried to update nonexistent core...\n");
 		assert(0);	
@@ -181,7 +181,7 @@ void update_core(int core, job_t * job){
 	// Update job
 	job->core = core;
 
-	printf("Job %d core set to %d\n", job->value[0], core);
+	// printf("Job %d core set to %d\n", job->value[0], core);
 
 	// Update cores and return success
 	active_core[core] = job->value[0];
@@ -206,18 +206,6 @@ void update_core(int core, job_t * job){
 int comparison_RR(const void *j1, const void *j2){
 	// Always return -1 so that this queue behaves like a FIFO
 	return -1;
-#if 0
-	job_t *this;
-	job_t *that;
-	this = (job_t*)j1;
-	that = (job_t*)j2;
-	
-	printf("Job %d has RR order %d, Job %d has RR order %d, returning %d\n", this->value[0], this->RR_order, that->value[0], that->RR_order, that->RR_order - this->RR_order);
-	
-	// Assuming this is properly updated, this should be positive when
-	// this should run next
-	return that->RR_order - this->RR_order;
-#endif
 }
 
 
@@ -239,9 +227,9 @@ int comparison_FCFS(const void *j1, const void *j2){
 		// Since we are guaranteed unique arrival times, simply subtract them.
 		// If the latter came sooner than the former, the result will be
 		// positive.
-		printf("Job %d arrived at time %d\n", this->value[0], this->value[1]);
-		printf("job %d arrived at time %d\n", that->value[0], that->value[1]);
-		printf("Job %d came %d seconds before job %d...\n", this->value[0], that->value[1]-this->value[1], that->value[0]);
+		// printf("Job %d arrived at time %d\n", this->value[0], this->value[1]);
+		// printf("job %d arrived at time %d\n", that->value[0], that->value[1]);
+		// printf("Job %d came %d seconds before job %d...\n", this->value[0], that->value[1]-this->value[1], that->value[0]);
 		return (this->value[1] - that->value[1]);
 	}
 }
@@ -304,9 +292,9 @@ int comparison_PRI(const void *j1, const void *j2){
 			// Since we are guaranteed unique arrival times, simply subtract them.
 			// If the latter came sooner than the former, the result will be
 			// positive.
-			printf("Job %d arrived at time %d\n", this->value[0], this->value[1]);
-			printf("job %d arrived at time %d\n", that->value[0], that->value[1]);
-			printf("Job %d came %d seconds before job %d...\n", this->value[0], that->value[1]-this->value[1], that->value[0]);
+			// printf("Job %d arrived at time %d\n", this->value[0], this->value[1]);
+			// printf("job %d arrived at time %d\n", that->value[0], that->value[1]);
+			// printf("Job %d came %d seconds before job %d...\n", this->value[0], that->value[1]-this->value[1], that->value[0]);
 			return (this->value[1] - that->value[1]);
 		}
 		else{
@@ -330,15 +318,15 @@ int comparison_PPRI(const void *j1, const void *j2){
 		// Since we are guaranteed unique arrival times, simply subtract them.
 		// If the latter came sooner than the former, the result will be
 		// positive.
-		printf("Job %d arrived at time %d\n", this->value[0], this->value[1]);
-		printf("job %d arrived at time %d\n", that->value[0], that->value[1]);
-		printf("Job %d came %d seconds before job %d...\n", this->value[0], that->value[1]-this->value[1], that->value[0]);
+		// printf("Job %d arrived at time %d\n", this->value[0], this->value[1]);
+		// printf("job %d arrived at time %d\n", that->value[0], that->value[1]);
+		// printf("Job %d came %d seconds before job %d...\n", this->value[0], that->value[1]-this->value[1], that->value[0]);
 		return (this->value[1] - that->value[1]);
 	}
 	else{
-		printf("Job %d has priority %d\n", this->value[0], this->value[3]);
-		printf("Job %d has priority %d\n", that->value[0], that->value[3]);
-		printf("Returning %d...\n", this->value[3]-that->value[3]);
+		// printf("Job %d has priority %d\n", this->value[0], this->value[3]);
+		// printf("Job %d has priority %d\n", that->value[0], that->value[3]);
+		// printf("Returning %d...\n", this->value[3]-that->value[3]);
 		// Positive if the former is higher priority
 		// Note that this is exactly backwards wrt what we discussed
 		// in class.
@@ -364,18 +352,18 @@ int comparison_PSJF(const void *j1, const void *j2){
 	// If the remaining time is equal, compare the arrival times per the
 	// rubric 
 	if(t2 == t1){
-		printf("Both jobs have %d time remaining\n", t1);
-		printf("Job %d arrived at time %d\n", this->value[0], this->value[1]);
-		printf("job %d arrived at time %d\n", that->value[0], that->value[1]);
-		printf("Job %d came %d seconds before job %d...\n", this->value[0], that->value[1]-this->value[1], that->value[0]);
+		// printf("Both jobs have %d time remaining\n", t1);
+		// printf("Job %d arrived at time %d\n", this->value[0], this->value[1]);
+		// printf("job %d arrived at time %d\n", that->value[0], that->value[1]);
+		// printf("Job %d came %d seconds before job %d...\n", this->value[0], that->value[1]-this->value[1], that->value[0]);
 				
 		// This result will be positive if the latter job arrived first
 		return (this->value[1] - that->value[1]);
 	}
 	else{
-		printf("Job %d has remaining time %d\n", this->value[0], t1);
-		printf("Job %d has remaining time %d\n", that->value[0], t2);
-		printf("Returning %d...\n", t1-t2);
+		// printf("Job %d has remaining time %d\n", this->value[0], t1);
+		// printf("Job %d has remaining time %d\n", that->value[0], t2);
+		// printf("Returning %d...\n", t1-t2);
 			
 	}
 	// This result will be positive if this job has a longer running
@@ -410,28 +398,28 @@ void next_job_no_preempt(job_t* new_job, int time){
 				// If the current job is not finished..
 				if(next_job->finished != 1){
 		
-					printf("Job %d is not finished(%d)...\n", next_job->value[0], next_job->finished);
+					// printf("Job %d is not finished(%d)...\n", next_job->value[0], next_job->finished);
 				
 					// and it is not already running...
 					if(0 > next_job->core){
 				
-						printf("and not running, it will be the next job...\n");
+						// printf("and not running, it will be the next job...\n");
 						found = 1;
 						break;
 					}
 					else{
-						printf("Job %d is running, moving on...\n", next_job->value[0]);
+						// printf("Job %d is running, moving on...\n", next_job->value[0]);
 					}
 				}
 				else{
-					printf("Job %d is finished, moving on...\n", next_job->value[0]);	
+					// printf("Job %d is finished, moving on...\n", next_job->value[0]);	
 				}
 			}
 
 			if(found){
-				printf("Updating core %d, currently running: %d\n", idle, active_core[idle]);
+				// printf("Updating core %d, currently running: %d\n", idle, active_core[idle]);
 				update_core(idle, next_job);
-				printf("Core %d is now running job %d\n", idle, active_core[idle]);
+				// printf("Core %d is now running job %d\n", idle, active_core[idle]);
 				
 
 				// Update last active time to next time cycle
@@ -441,7 +429,7 @@ void next_job_no_preempt(job_t* new_job, int time){
 				idle = get_idle_core();
 			}
 			else{
-				printf("No valid jobs found to schedule\n");
+				// printf("No valid jobs found to schedule\n");
 				break;
 			}
 		}// End while
@@ -455,7 +443,6 @@ void next_job_preempt(job_t *new_job, int time){
 	
 	next_job = NULL;
 	int length = priqueue_size(ready_q);
-	int found = 0;
 	if(length > 0){
 	
 		for(int i = 0; i<length; ++i){
@@ -464,29 +451,29 @@ void next_job_preempt(job_t *new_job, int time){
 			// If the current job is not finished..
 			if(next_job->finished != 1){
 		
-				printf("Job %d is not finished...\n", next_job->value[0]);
+				// printf("Job %d is not finished...\n", next_job->value[0]);
 			
 				// and it is not already running...
 
 				if(0 > next_job->core){
-					printf("and not running, checking for free cores...\n");
+					// printf("and not running, checking for free cores...\n");
 
 					// If an idle core exists, assign this
 					// job to that core
 					int idle = get_idle_core();
 
 					if(9000 != idle){
-						printf("An idle core exists to be scheduled...\n");	
-						printf("Updating core %d, currently running: %d\n", idle, active_core[idle]);
+						// printf("An idle core exists to be scheduled...\n");	
+						// printf("Updating core %d, currently running: %d\n", idle, active_core[idle]);
 						update_core(idle, next_job);
-						printf("Core %d is now running job %d\n", idle, active_core[idle]);
+						// printf("Core %d is now running job %d\n", idle, active_core[idle]);
 					
-							}
+					}
 					else{
 						// Otherwise, check if any of the jobs
 						// existing jobs should be preempted
 	
-						printf("No idle cores available, checking for preemption...\n");
+						// printf("No idle cores available, checking for preemption...\n");
 
 						// To preserve priority, find
 						// the least important task
@@ -516,21 +503,21 @@ void next_job_preempt(job_t *new_job, int time){
 								old_job->value[7] = -1;	
 							}
 
-							printf("Job %d will preempt job %d on core %d...\n", next_job->value[0], old_job->value[0], core);
+							// printf("Job %d will preempt job %d on core %d...\n", next_job->value[0], old_job->value[0], core);
 								
-								printf("Updating core %d, currently running: %d\n", core, active_core[core]);
+							// printf("Updating core %d, currently running: %d\n", core, active_core[core]);
 							update_core(core, next_job);
-							printf("Core %d is now running job %d\n", core, active_core[core]);
+							// printf("Core %d is now running job %d\n", core, active_core[core]);
 
 						}
 						else{
-							printf("No preemptable jobs found...\n");	
+							// printf("No preemptable jobs found...\n");	
 						}
 					}// End else
 				}// End if (0 < next_job->core)
 			}
 			else{
-				printf("Job %d is finished, moving on...\n", next_job->value[0]);	
+				// printf("Job %d is finished, moving on...\n", next_job->value[0]);	
 			}
 
 		}
@@ -575,28 +562,28 @@ void next_job_RR(job_t *new_job, int time){
 				// If the current job is not finished..
 				if(next_job->finished != 1){
 		
-					printf("Job %d is not finished(%d)...\n", next_job->value[0], next_job->finished);
+					// printf("Job %d is not finished(%d)...\n", next_job->value[0], next_job->finished);
 				
 					// and it is not already running...
 					if(0 > next_job->core){
 				
-						printf("and not running, it will be the next job...\n");
+						// printf("and not running, it will be the next job...\n");
 						found = 1;
 						break;
 					}
 					else{
-						printf("Job %d is running, moving on...\n", next_job->value[0]);
+						// printf("Job %d is running, moving on...\n", next_job->value[0]);
 					}
 				}
 				else{
-					printf("Job %d is finished, moving on...\n", next_job->value[0]);	
+					// printf("Job %d is finished, moving on...\n", next_job->value[0]);	
 				}
 			}
 
 			if(found){
-				printf("Updating core %d, currently running: %d\n", idle, active_core[idle]);
+				// printf("Updating core %d, currently running: %d\n", idle, active_core[idle]);
 				update_core(idle, next_job);
-				printf("Core %d is now running job %d\n", idle, active_core[idle]);
+				// printf("Core %d is now running job %d\n", idle, active_core[idle]);
 				
 
 				// Update last active time to next time cycle
@@ -606,7 +593,7 @@ void next_job_RR(job_t *new_job, int time){
 				idle = get_idle_core();
 			}
 			else{
-				printf("No valid jobs found to schedule\n");
+				// printf("No valid jobs found to schedule\n");
 				break;
 			}
 		}// End while
@@ -664,10 +651,10 @@ void scheduler_start_up(int cores, scheme_t scheme)
 			priqueue_init(ready_q, comparison_RR);
 			break;
 	}
-	printf("Created new queue with %d elements\n", priqueue_size(ready_q));
-	printf("Cores:\t");
-	for(int i = 0; i<NUM_CORES; i++){printf("%d ", active_core[i]);}
-	printf("\n");
+	// printf("Created new queue with %d elements\n", priqueue_size(ready_q));
+	// printf("Cores:\t");
+	//for(int i = 0; i<NUM_CORES; i++){printf("%d ", active_core[i]);}
+	// printf("\n");
 }
 
 
@@ -718,19 +705,11 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
 	daJob->RR_order = 0;			// Tracks order for RR scheduling
 
 	// Add the new Job to the back of the queue
-	int status = priqueue_offer(ready_q, daJob);
+	priqueue_offer(ready_q, daJob);
 
-	printf("Inserted new job at position %d\n", status);
+	// printf("Inserted new job at position %d\n", status);
 
-	printf("Current jobs in queue:\n\t");
-	for(int j = 0; j<priqueue_size(ready_q); ++j){
-		job_t* temp;
-		temp = (job_t*)priqueue_at(ready_q, j);
-		printf("%d\t", temp->value[0]);
-	}
-	printf("\n");
-
-	printf("Current ready queue size is: %d\n", priqueue_size(ready_q));
+	// printf("Current ready queue size is: %d\n", priqueue_size(ready_q));
 	
 	// Determine and set up for the next round of jobs.  It is assumed
 	// that by this point, all inactive jobs have been destroyed, and that
@@ -805,7 +784,7 @@ int scheduler_job_finished(int core_id, int job_number, int time)
 
 	// Find and update the job in question
 	curr_job = get_job(job_number);
-	printf("Job finished: %d\n", curr_job->value[0]);
+	// printf("Job finished: %d\n", curr_job->value[0]);
 	
 	// Update ended time
 	curr_job->value[5] = time;
@@ -813,7 +792,7 @@ int scheduler_job_finished(int core_id, int job_number, int time)
 	// Mark complete
 	curr_job->finished = 1;
 	
-	printf("Freeing core %d, currently running job %d...\n", core_id, active_core[core_id]);
+	// printf("Freeing core %d, currently running job %d...\n", core_id, active_core[core_id]);
 	// Free the core for downstream helpers
 	active_core[core_id] = -1;
 	curr_job->core = -1;
@@ -866,7 +845,7 @@ int scheduler_job_finished(int core_id, int job_number, int time)
 int scheduler_quantum_expired(int core_id, int time)
 {
 	
-	printf("Quantum time expired for core %d\n", core_id);
+	// printf("Quantum time expired for core %d\n", core_id);
 
 	scheduler_show_queue();
 	
@@ -886,11 +865,11 @@ int scheduler_quantum_expired(int core_id, int time)
 	}
 	assert(position >= 0);
 
-	printf("Removing running job %d at position %d, current size is %d...\n", active_core[core_id], position, priqueue_size(ready_q));
+	// printf("Removing running job %d at position %d, current size is %d...\n", active_core[core_id], position, priqueue_size(ready_q));
 	current_job = (job_t*)priqueue_remove_at(ready_q, position);
 	assert(NULL!=current_job);
 
-	printf("Job %d removed, current size is %d, updating metrics...\n", current_job->value[0], priqueue_size(ready_q));
+	// printf("Job %d removed, current size is %d, updating metrics...\n", current_job->value[0], priqueue_size(ready_q));
 
 	if(current_job->value[0] != active_core[core_id]){
 		printf("Sanity check failed in quantum expired...\n");
@@ -903,8 +882,8 @@ int scheduler_quantum_expired(int core_id, int time)
 	// update its time
 	update_running_time(current_job, time);
 
-	printf("Time updated, checking job again...\n");
-	printf("Old job %d is OK...\n", current_job->value[0]);
+	// printf("Time updated, checking job again...\n");
+	// printf("Old job %d is OK...\n", current_job->value[0]);
 
 	// Reset its core
 	current_job->core = -1;
@@ -918,32 +897,33 @@ int scheduler_quantum_expired(int core_id, int time)
 		current_job->value[7] = -1;	
 	}
 	
-	printf("Adding old job to back of queue...\n");
+	// printf("Adding old job to back of queue...\n");
 	// Add the old job to the back of the queue
 	priqueue_offer(ready_q, current_job);
 
-	printf("Checking that the job is in fact in the queue...\n");
+	// printf("Checking that the job is in fact in the queue...\n");
 	int sanity_check = current_job->value[0];
 
 	current_job = (job_t *)get_job(sanity_check);
 
 	if(NULL == current_job){
 		printf("get_job returned NULL, The job was not properly inserted...\n");
+		assert(0);
 	}
 
-	printf("The job is in the queue\n");
+	// printf("The job is in the queue\n");
 	
 
-	printf("Scheduling next job...\n");
+	// printf("Scheduling next job...\n");
 	// Call to schedule the next job to run
 	next_job_RR(NULL, time);
 
-	printf("Updating time...\n");
+	// printf("Updating time...\n");
 	// Update time
 	update_time(time);
 
-	printf("Done with quantum expired...\n");
-	scheduler_show_queue();
+	// printf("Done with quantum expired...\n");
+	//scheduler_show_queue();
 	return active_core[core_id];
 }
 
@@ -966,7 +946,7 @@ float scheduler_average_waiting_time()
 		total = current_job->value[5] - current_job->value[1];
 		waiting = total - current_job->value[2];
 
-		printf("Job %d waited %d time units\n", current_job->value[0], waiting);
+		// printf("Job %d waited %d time units\n", current_job->value[0], waiting);
 		// waiting time is total time less running time
 		sum += waiting;
 	}
@@ -993,7 +973,7 @@ float scheduler_average_turnaround_time()
 	for(int i = 0; i<priqueue_size(ready_q); ++i){
 		current_job = (job_t*)priqueue_at(ready_q, i);
 		// Add in total time (end-start)
-		printf("Job %d took a total of %d time units\n", current_job->value[0], current_job->value[5]-current_job->value[1]);
+		// printf("Job %d took a total of %d time units\n", current_job->value[0], current_job->value[5]-current_job->value[1]);
 		time += (current_job->value[5] - current_job->value[1]);
 	}
 	return (1.0 * time)/priqueue_size(ready_q);
@@ -1016,7 +996,7 @@ float scheduler_average_response_time()
 	job_t *current_job;
 	for(int i = 0; i<priqueue_size(ready_q); ++i){
 		current_job = (job_t*)priqueue_at(ready_q, i);
-		printf("Job %d had latency of %d time units\n", current_job->value[0], current_job->value[7]);
+		// printf("Job %d had latency of %d time units\n", current_job->value[0], current_job->value[7]);
 		time += current_job->value[7];
 	}
 	return (1.0 * time)/priqueue_size(ready_q);
@@ -1031,9 +1011,18 @@ float scheduler_average_response_time()
 */
 void scheduler_clean_up()
 {
+	job_t * curr;
+	while(0 < priqueue_size(ready_q)){
+		curr = (job_t*)priqueue_poll(ready_q);	
+		free(curr->value);
+	}
+	curr = NULL;
+	priqueue_destroy(ready_q);
+	free(ready_q);
+	free(active_core);
 	// Need to free all values members
 	// Need to free ready_q members
-	// Need to free rr_q members
+	
 }
 
 
@@ -1063,19 +1052,23 @@ void scheduler_clean_up()
 
 void scheduler_show_queue(priqueue_t* q)
 {
+#if 0
 	printf("\n");
 	for(int i=0; i<priqueue_size(ready_q); ++i){
 		job_t *daJob = (job_t*)priqueue_at(ready_q, i);
 		printf("\tJob %d:\tArrived:\t%d\tBurst:\t\t%d\tPriority:\t%d\tCore:\t%d\tRunning:\t%d\tComplete:\t%d\n", daJob->value[0], daJob->value[1], daJob->value[2], daJob->value[3], daJob->core, (daJob->core>=0)?1:0, daJob->finished);
 		printf("\t       \tLast active:\t%d\tRuntime:\t%d\n", daJob->value[6], daJob->value[4]);
 	}
+#endif
 }
 
 void print_queue(){
+#if 0
 	job_t * curr;
 	for(int i=0; i<priqueue_size(ready_q); ++i){
 		curr = (job_t*)priqueue_at(ready_q, i);
 		printf("%d ", curr->value[0]);
 	}
 	printf("\n");
+#endif
 }

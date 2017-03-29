@@ -22,10 +22,10 @@ int compare3(const void *a, const void *b){
 
 int main()
 {
-	priqueue_t q3;//q, q2, q3;
+	priqueue_t q, q2, q3;
 
-//	priqueue_init(&q, compare1);
-//	priqueue_init(&q2, compare2);
+	priqueue_init(&q, compare1);
+	priqueue_init(&q2, compare2);
 	priqueue_init(&q3, compare3);
 
 	/* Pupulate some data... */
@@ -35,7 +35,7 @@ int main()
 	for (i = 0; i < 100; i++)
 		values[i] = i;
 
-#if 0	/* Add 5 values, 3 unique. */
+	/* Add 5 values, 3 unique. */
 	priqueue_offer(&q, &values[12]);
 	priqueue_offer(&q, &values[13]);
 	priqueue_offer(&q, &values[14]);
@@ -131,76 +131,13 @@ int main()
 	for (i = 0; i < priqueue_size(&q2); i++)
 		printf("%d ", *((int *)priqueue_at(&q2, i)) );
 	printf("\n");
-#endif
-	int* temp2;
-
-	printf("Case 1: remove on empty\n");
-	assert(NULL == priqueue_remove_at(&q3, 0));
-
-	priqueue_offer(&q3, &values[0]);
-	
-	printf("Case 2: remove single entry\n");
-	
-	priqueue_offer(&q3, &values[1]);
-	assert(q3.front == q3.back);
-	assert(priqueue_size(&q3) == 1);
-
-	temp2 = (int*)priqueue_remove_at(&q3, 0);
-	assert(priqueue_size(&q3)==0);
-	assert(q3.front == NULL);
-	assert(q3.back == NULL);
-	assert(*temp2 == 1);
-
-
-	printf("Case 3: remove front, 2+ elements\n");
-
-	priqueue_offer(&q3, temp2);
-	priqueue_offer(&q3, temp2);
-	assert(priqueue_size(&q3)==2);
-	temp2 = (int*)priqueue_remove_at(&q3, 0);
-	assert(priqueue_size(&q3)==1);
-	assert(q3.front == q3.back);
-	assert(*temp2 == 1);
-
-	temp2 = (int*)priqueue_remove_at(&q3, 0);
-	assert(priqueue_size(&q3)==0);
-	assert(q3.front == NULL);
-	assert(q3.back == NULL);
-	assert(*temp2 == 1);
-	
-	printf("Case 4: remove back, 2+ elements\n");
-	priqueue_offer(&q3, temp2);
-	priqueue_offer(&q3, temp2);
-	assert(priqueue_size(&q3)==2);
-	temp2 = (int*)priqueue_remove_at(&q3, 1);
-	assert(priqueue_size(&q3)==1);
-	assert(q3.front == q3.back);
-	assert(*temp2 == 1);
-
-	printf("Case 5: remove in middle\n");
-	for(int i = 0; i<3; ++i){
-		*temp2 = i;
-		priqueue_offer(&q3, temp2);
-	}
-
-	temp2 = (int*)priqueue_remove_at(&q3, 1);
-	assert(priqueue_size(&q3)==2);
-	assert(*temp2 == 1);
-
-
-
-	printf("Checking RR-style queue...\n");
-	for(int i = 0; i<priqueue_size(&q3); ++i){
-		printf("%d ", *(int*)priqueue_at(&q3, i));
-	}
-
 
 	printf("\n");
 
-	//priqueue_destroy(&q2);
-	//priqueue_destroy(&q);
+	priqueue_destroy(&q2);
+	priqueue_destroy(&q);
 
-	//free(values);
+	free(values);
 
 	return 0;
 }
