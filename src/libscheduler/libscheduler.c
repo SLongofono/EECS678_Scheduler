@@ -44,6 +44,13 @@ typedef struct _job_t
  * Helper Functions
  */
 
+
+/**
+ * @brief Computes and updates time metrics for the job given
+ *
+ * @param job A pointer to the job to update
+ * @param time An integer representing the current time unit
+ */
 void update_running_time(job_t * job, int time){
 
 	int new_running_time = 0;
@@ -67,6 +74,12 @@ void update_running_time(job_t * job, int time){
 }
 
 
+/**
+ * @brief Computes and updates the latency of the given job
+ *
+ * @param job A pointer to the job to update
+ * @param time An integer representing the current time unit
+ */
 void update_latency_time(job_t* job, int time){
 	// If we haven't already set it...
 	if(0 > job->value[7]){
@@ -76,6 +89,12 @@ void update_latency_time(job_t* job, int time){
 }
 
 
+/**
+ * @brief Computes and updates time metrics for the job given
+ *
+ * @param job A pointer to the job to update
+ * @param time An integer representing the current time unit
+ */
 void update_time(int time){
 	job_t *curr_job;
 
@@ -100,6 +119,10 @@ void update_time(int time){
 
 /**
  * @brief fetches the currently running job to be preempted by the job passed in, or NULL if none exist
+ *
+ * @param job A job_t to compare against existing jobs, the preempting job
+ *
+ * @return A job to be preempted, or NULL if none exists
  */
 job_t* get_preempt_job(job_t *current_job){
 
@@ -126,6 +149,7 @@ job_t* get_preempt_job(job_t *current_job){
 
 /**
  * @brief Returns the integer corresponding to the lowest free core
+ * 
  * @return The lowest non-negative integer which corresponds to a free core,
  * or -1 if no cores are free.
  *
@@ -142,7 +166,12 @@ int get_idle_core(){
 
 
 /**
- * @brief Returns a pointer the job with the job number passed in, or NULL
+ * @brief Given a job number, locates and returns the job with that number
+ * from the ready queue
+ *
+ * @param job_number The job number of the job to fetch (guaranteed unique)
+ *
+ * @return a pointer the job with the job number passed in, or NULL
  * 	  if no such job exists.
  */
 job_t * get_job(int job_number){
@@ -167,7 +196,11 @@ job_t * get_job(int job_number){
 /**
  * @brief Associates a job with a core and vice versa
  *
- * Dies if anything is amiss
+ * @param core An integer representing the index into the active_core global
+ * 	       array of cores
+ * @param job A pointer to a job to be updated to the given core
+ *
+ *  Dies if anything is amiss
  */
 
 void update_core(int core, job_t * job){
@@ -193,13 +226,19 @@ void update_core(int core, job_t * job){
 /*
  * Functions for comparison of jobs under different scheduling policies
  *
+ * @param j1 A pointer to a job, given as a void *
+ * @param j2 A pointer to a job, given as a void *
+ *
+ * @return An integer which is negative if the j2 takes precedence over j1,
+ *         zero if equal, or positive if j1 takes precedence
+ *
  * Note: The priqueue class behaves as such:
- * 	compare(a,b):
+ * 	 compare(a,b):
  * 		return 1 if a < b
  * 		else -1
  *
- * 	Thus all functions need to return accordingly, positive return
- * 	if the first parameter takes precedence, negative otherwsie
+ * 	 Thus all functions need to return accordingly, positive return
+ * 	 if the first parameter takes precedence, negative otherwise
  */
 
 
@@ -373,10 +412,15 @@ int comparison_PSJF(const void *j1, const void *j2){
 
 
 /**
- * Functions for determining and setting up the next job in the queue
+ * @brief Determines the next job to be scheduled for non-preemptive schemes
+ * 
+ * @param new_job An artifact from earlier versions that I was too lazy to
+ * 		  remove
  *
- * Everything must be ready to execute after these functions, in case they
- * were called from scheduler_new_job().
+ * @param time An integer representing the current time		  
+ *
+ * NOTE: This method schedules and updates everything blindly, plan
+ * 	 accordingly.  Relies on the ready queue being sorted by precedence.
  */
 
 void next_job_no_preempt(job_t* new_job, int time){
@@ -437,6 +481,17 @@ void next_job_no_preempt(job_t* new_job, int time){
 }
 
 
+/**
+ * @brief Determines the next job to be scheduled for preemptive schemes
+ * 
+ * @param new_job An artifact from earlier versions that I was too lazy to
+ * 		  remove
+ *
+ * @param time An integer representing the current time		  
+ *
+ * NOTE: This method schedules and updates everything blindly, plan
+ * 	 accordingly.  Relies on the ready queue being sorted by precedence.
+ */
 void next_job_preempt(job_t *new_job, int time){
 	
 	job_t *next_job;
@@ -525,6 +580,17 @@ void next_job_preempt(job_t *new_job, int time){
 }
 
 
+/**
+ * @brief Special snowflake method to find the next job for a Round robin
+ * scheme
+ *
+ * @param new_job An artifact from a previous version that I was too lazy to
+ * remove.
+ *
+ * @param time An integer representing the current time
+ *
+ * See notes
+ */
 void next_job_RR(job_t *new_job, int time){
 
 	// Main idea:
@@ -854,7 +920,7 @@ int scheduler_quantum_expired(int core_id, int time)
 	
 	job_t * current_job;
 	int position = -1;
-	int next_job = -1;
+	//int next_job = -1;
 	int no_other_jobs = 0;
 
 
@@ -862,30 +928,23 @@ int scheduler_quantum_expired(int core_id, int time)
 	int current_job_number = active_core[core_id];
 	assert(current_job_number >= 0);
 	
+	// Verify that it exists...
 	current_job = (job_t*)get_job(current_job_number);
 	assert(NULL!=current_job);
 
-	// Review each job to find the position of the current job, the
-	// position of the next job, and to determine if there are
-	// any jobs besides the currently running job
+	// Review each job to find the position of the current job, 
+	// and to determine if there are any jobs besides the currently running job
 	for(int i = 0; i<priqueue_size(ready_q); ++i){
 		current_job = priqueue_at(ready_q, i);
 		if(active_core[core_id] == current_job->value[0]){
+			// Mark position of currently running job
 			position = i;
 		}
 		else{
-				
-			// If the current job is not finished, check if it is the
-			// currently running job.
-			// If no other job has been encountered yet, we still need to
-			// check that other jobs do no exist
-			if(0 > next_job){
-				if(!current_job->finished){
-					// and not already running...
-					if(0 > current_job->core){
-						next_job = current_job->value[0];
-						no_other_jobs = 1;
-					}
+			if(!current_job->finished){
+				// and not already running...
+				if(0 > current_job->core){
+					no_other_jobs = 1;
 				}
 			}
 		}
