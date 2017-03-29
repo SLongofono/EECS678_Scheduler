@@ -837,6 +837,9 @@ int scheduler_job_finished(int core_id, int job_number, int time)
   the quantum expiration, return the job_number of the job that should be
   scheduled to run on core core_id.
 
+  NOTE - not in the rubric, but there is some ill-defined behavior:
+  	If no other jobs exist, a job should not be preempted at all.
+
   @param core_id the zero-based index of the core where the quantum has expired.
   @param time the current time of the simulator. 
   @return job_number of the job that should be scheduled on core cord_id
@@ -851,23 +854,51 @@ int scheduler_quantum_expired(int core_id, int time)
 	
 	job_t * current_job;
 	int position = -1;
-		
-	// Find the currently running job and set it to idle
+	int next_job = -1;
+	int no_other_jobs = 0;
+
+
+	// Find the currently running job
 	int current_job_number = active_core[core_id];
 	assert(current_job_number >= 0);
 	
+	current_job = (job_t*)get_job(current_job_number);
+	assert(NULL!=current_job);
+
+	// Review each job to find the position of the current job, the
+	// position of the next job, and to determine if there are
+	// any jobs besides the currently running job
 	for(int i = 0; i<priqueue_size(ready_q); ++i){
 		current_job = priqueue_at(ready_q, i);
 		if(active_core[core_id] == current_job->value[0]){
 			position = i;
-			break;
+		}
+		else{
+				
+			// If the current job is not finished, check if it is the
+			// currently running job.
+			// If no other job has been encountered yet, we still need to
+			// check that other jobs do no exist
+			if(0 > next_job){
+				if(!current_job->finished){
+					// and not already running...
+					if(0 > current_job->core){
+						next_job = current_job->value[0];
+						no_other_jobs = 1;
+					}
+				}
+			}
 		}
 	}
 	assert(position >= 0);
+	
+	// If there are no other active jobs, there is nothing to do
+	if(!no_other_jobs){
+		return current_job_number;	
+	}
 
 	// printf("Removing running job %d at position %d, current size is %d...\n", active_core[core_id], position, priqueue_size(ready_q));
 	current_job = (job_t*)priqueue_remove_at(ready_q, position);
-	assert(NULL!=current_job);
 
 	// printf("Job %d removed, current size is %d, updating metrics...\n", current_job->value[0], priqueue_size(ready_q));
 
@@ -917,6 +948,7 @@ int scheduler_quantum_expired(int core_id, int time)
 	// printf("Scheduling next job...\n");
 	// Call to schedule the next job to run
 	next_job_RR(NULL, time);
+
 
 	// printf("Updating time...\n");
 	// Update time
