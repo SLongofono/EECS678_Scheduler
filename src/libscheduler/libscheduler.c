@@ -7,15 +7,19 @@
 #include "libscheduler.h"
 #include "../libpriqueue/libpriqueue.h"
 
+
 // Global ready queue
 priqueue_t *ready_q;
+
 
 // Track busy cores
 int *active_core;
 int NUM_CORES;
 
+
 // Keep track of scheme
 scheme_t policy;
+
 
 /**
   Stores information making up a job to be scheduled  and statistics required
@@ -40,13 +44,17 @@ typedef struct _job_t
 } job_t;
 
 
-/**
- * Helper Functions
- */
+void print_queue(){
+	job_t * curr;
+	for(int i=0; i<priqueue_size(ready_q); ++i){
+		curr = (job_t*)priqueue_at(ready_q, i);
+		printf("%d ", curr->value[0]);
+	}
+	printf("\n");
+}
 
 
-/**
- * @brief Computes and updates time metrics for the job given
+/** @brief Computes and updates time metrics for the job given
  *
  * @param job A pointer to the job to update
  * @param time An integer representing the current time unit
@@ -331,12 +339,15 @@ int comparison_PRI(const void *j1, const void *j2){
 			// Since we are guaranteed unique arrival times, simply subtract them.
 			// If the latter came sooner than the former, the result will be
 			// positive.
-			// printf("Job %d arrived at time %d\n", this->value[0], this->value[1]);
-			// printf("job %d arrived at time %d\n", that->value[0], that->value[1]);
-			// printf("Job %d came %d seconds before job %d...\n", this->value[0], that->value[1]-this->value[1], that->value[0]);
+			 printf("Job %d arrived at time %d\n", this->value[0], this->value[1]);
+			 printf("job %d arrived at time %d\n", that->value[0], that->value[1]);
+			 printf("Job %d came %d seconds before job %d...\n", this->value[0], that->value[1]-this->value[1], that->value[0]);
 			return (this->value[1] - that->value[1]);
 		}
 		else{
+			 printf("Job %d has priority %d\n", this->value[0], this->value[3]);
+			 printf("Job %d has priority %d\n", that->value[0], that->value[3]);
+			 printf("Returning %d...\n", this->value[3]-that->value[3]);
 			// Positive if the former is higher priority
 			return (this->value[3] - that->value[3]);	
 		}
@@ -422,7 +433,6 @@ int comparison_PSJF(const void *j1, const void *j2){
  * NOTE: This method schedules and updates everything blindly, plan
  * 	 accordingly.  Relies on the ready queue being sorted by precedence.
  */
-
 void next_job_no_preempt(job_t* new_job, int time){
 	job_t* next_job = NULL;
 	int length = priqueue_size(ready_q);
@@ -770,8 +780,11 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
 	daJob->finished = 0;			// Complete/Incomplete
 	daJob->RR_order = 0;			// Tracks order for RR scheduling
 
+	print_queue();
 	// Add the new Job to the back of the queue
 	priqueue_offer(ready_q, daJob);
+	print_queue();
+
 
 	// printf("Inserted new job at position %d\n", status);
 
@@ -787,23 +800,6 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
 
 	switch(policy){
 		case RR:
-			// Need an empty statement to avoid a gotcha: labels
-			// must be followed by statements, but declarations do
-			// not count as statements. Look up error message:
-			// "error: a label can only be part of a statement and
-			// a declaration is not a statement".  Thanks stackexchange.
-			; // Do nothing
-
-			//int rr_order;
-			
-			//job_t* last;
-			//last = (job_t*)priqueue_at(ready_q, priqueue_size(ready_q)-1);
-
-			// One more than the last ensures FIFO order
-			//rr_order = last->RR_order + 1;
-			//daJob->RR_order = rr_order;
-
-			// Schedule all jobs
 			next_job_RR(daJob, time);
 			break;
 		case PPRI:
@@ -1153,13 +1149,3 @@ void scheduler_show_queue(priqueue_t* q)
 #endif
 }
 
-void print_queue(){
-#if 0
-	job_t * curr;
-	for(int i=0; i<priqueue_size(ready_q); ++i){
-		curr = (job_t*)priqueue_at(ready_q, i);
-		printf("%d ", curr->value[0]);
-	}
-	printf("\n");
-#endif
-}
