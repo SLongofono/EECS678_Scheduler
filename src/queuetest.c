@@ -124,9 +124,6 @@ int main()
 		printf("%d ", *((int *)priqueue_at(&q, i)) );
 	printf("\n");
 
-
-	printf("The middle element is: %d\n", *(int*)priqueue_at(&q, 5));
-
 	printf("Elements in second queue (expected none): ");
 	for (i = 0; i < priqueue_size(&q2); i++)
 		printf("%d ", *((int *)priqueue_at(&q2, i)) );
