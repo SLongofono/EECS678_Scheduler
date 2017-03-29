@@ -54,6 +54,7 @@ void priqueue_init(priqueue_t *q, int(*comparer)(const void *, const void *))
  */
 int priqueue_offer(priqueue_t *q, void *ptr)
 {
+	print_q(q);
 	if(DEBUG){
 		printf("Adding a value...\n");	
 	}
@@ -131,6 +132,7 @@ int priqueue_offer(priqueue_t *q, void *ptr)
 			print_q(q);	
 		}
 	}
+	print_q(q);
 	return insertion_point;
 }
 
@@ -269,6 +271,7 @@ void *priqueue_at(priqueue_t *q, int index)
  */
 int priqueue_remove(priqueue_t *q, void *ptr)
 {
+	print_q(q);
 	node_t* temp = q->front;
 	node_t* prev = NULL;
 	int removed = 0;
@@ -318,6 +321,7 @@ int priqueue_remove(priqueue_t *q, void *ptr)
 			temp = temp->next;
 		}
 	}
+	print_q(q);
 	return removed;
 }
 
@@ -333,8 +337,8 @@ int priqueue_remove(priqueue_t *q, void *ptr)
  */
 void *priqueue_remove_at(priqueue_t *q, int index)
 {
-	if(q->size < index || index < 0){
-		return NULL;	
+	if(NULL == q || 0 == q->size || q->size < index ){
+		return NULL;
 	}
 	int count = 0;
 	void *ret = NULL;
@@ -345,17 +349,26 @@ void *priqueue_remove_at(priqueue_t *q, int index)
 		temp = temp->next;
 		count++;
 	}
-	if(temp != NULL){
-		if(prev != NULL){
-			prev->next = temp->next;
-		}
-		else{
-			q->front = temp->next;	
-		}
+	if(1 == q->size){	// Case exactly one
 		ret = (void *)temp->value;
-		free(temp);
-		q->size--;
+		q->front = NULL;
+		q->back = NULL;
 	}
+	else if(temp == q->back){	// Case remove from back
+		prev->next = NULL;
+		q->back = prev;
+		ret = (void *)temp->value;
+	}
+	else if(temp == q->front){	// Case remove from front
+		q->front = temp->next;
+		ret = (void*)temp->value;
+	}
+	else{	// Case remove from middle
+		prev->next = temp->next;
+		ret = (void*)temp->value;
+	}
+	free(temp);
+	q->size--;
 	return ret;
 
 }
@@ -391,3 +404,4 @@ void priqueue_destroy(priqueue_t *q)
 	q->front = NULL;
 	q->back = NULL;
 }
+

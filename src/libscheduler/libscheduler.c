@@ -146,13 +146,18 @@ int get_idle_core(){
  * 	  if no such job exists.
  */
 job_t * get_job(int job_number){
+	printf("In get job, looking for %d...\n", job_number);
 	job_t* result = NULL;
 	job_t *current_job;
 	for(int i = 0; i<priqueue_size(ready_q); ++i){
-		current_job = priqueue_at(ready_q, i);
+		current_job = (job_t*)priqueue_at(ready_q, i);
 		if(job_number == current_job->value[0]){
 			result = current_job;
+			printf("Found job %d!\n", current_job->value[0]);
 			break;
+		}
+		else{
+			printf("Job %d does not match %d\n", current_job->value[0], job_number);	
 		}
 	}
 	return result;
@@ -201,7 +206,7 @@ void update_core(int core, job_t * job){
 int comparison_RR(const void *j1, const void *j2){
 	// Always return -1 so that this queue behaves like a FIFO
 	return -1;
-
+#if 0
 	job_t *this;
 	job_t *that;
 	this = (job_t*)j1;
@@ -212,7 +217,9 @@ int comparison_RR(const void *j1, const void *j2){
 	// Assuming this is properly updated, this should be positive when
 	// this should run next
 	return that->RR_order - this->RR_order;
+#endif
 }
+
 
 int comparison_FCFS(const void *j1, const void *j2){
 	job_t *this;
@@ -896,6 +903,9 @@ int scheduler_quantum_expired(int core_id, int time)
 	// update its time
 	update_running_time(current_job, time);
 
+	printf("Time updated, checking job again...\n");
+	printf("Old job %d is OK...\n", current_job->value[0]);
+
 	// Reset its core
 	current_job->core = -1;
 							
@@ -915,7 +925,11 @@ int scheduler_quantum_expired(int core_id, int time)
 	printf("Checking that the job is in fact in the queue...\n");
 	int sanity_check = current_job->value[0];
 
-	current_job = get_job(sanity_check);
+	current_job = (job_t *)get_job(sanity_check);
+
+	if(NULL == current_job){
+		printf("get_job returned NULL, The job was not properly inserted...\n");
+	}
 
 	printf("The job is in the queue\n");
 	
@@ -1055,4 +1069,13 @@ void scheduler_show_queue(priqueue_t* q)
 		printf("\tJob %d:\tArrived:\t%d\tBurst:\t\t%d\tPriority:\t%d\tCore:\t%d\tRunning:\t%d\tComplete:\t%d\n", daJob->value[0], daJob->value[1], daJob->value[2], daJob->value[3], daJob->core, (daJob->core>=0)?1:0, daJob->finished);
 		printf("\t       \tLast active:\t%d\tRuntime:\t%d\n", daJob->value[6], daJob->value[4]);
 	}
+}
+
+void print_queue(){
+	job_t * curr;
+	for(int i=0; i<priqueue_size(ready_q); ++i){
+		curr = (job_t*)priqueue_at(ready_q, i);
+		printf("%d ", curr->value[0]);
+	}
+	printf("\n");
 }
